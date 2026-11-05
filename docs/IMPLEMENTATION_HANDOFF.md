@@ -1,6 +1,6 @@
 # Progression System — implementation handoff
 
-**Status as of 2026-11-06:** The six implementation milestones are represented in the working tree. The app builds and runs locally against the **development** Supabase project. Automated local, browser, and live development-database checks have passed. A Vercel project has been imported, but its first deployment is an **unconnected preview build** and direct `/status` requests return 404. The fix in this checkout is pending commit/push and Vercel environment setup. **No production Supabase project has been set up.** This is ready for a controlled private beta after the release gates below, not yet a verified production release.
+**Status as of 2026-11-06:** The six implementation milestones are represented in the working tree. The app builds and runs locally against the **development** Supabase project. Automated local, browser, and live development-database checks have passed. The frontend is deployed on Vercel at `progression-system-olive.vercel.app`, connected to the development Supabase project, and direct routes load. **No production Supabase project has been set up.** This is ready for a controlled private beta after the release gates below, not yet a verified production release.
 
 This file is the current-status map for future coding agents. Product behavior is governed by `AGENTS.md`, then `docs/DECISIONS.md` and `docs/PROGRESSION_RULES.md`; this file does not override them. `MILESTONE_1.md` through `MILESTONE_6.md`, `INTEGRATION_READINESS.md`, and parts of `README.md` are historical snapshots and contain statements that were true before the development project was connected.
 
@@ -30,7 +30,7 @@ This file is the current-status map for future coding agents. Product behavior i
 
 ## Verified development state
 
-The only linked live project used for integration checks is `progression-system-dev` (`jtrvzbkklpiuwydaolek`). Migrations through `202611060002_archive_visibility.sql` were previewed for that exact project and applied there. `202611060003_correctness_fixes.sql` has not been applied to it yet. The CLI calls its main branch `production`; that label does **not** mean this is the application's production database.
+The only linked live project used for integration checks is `progression-system-dev` (`jtrvzbkklpiuwydaolek`). Migrations through `202611060003_correctness_fixes.sql` were previewed for that exact project and applied there. The installed Supabase CLI needs `--remote` to target it; plain commands target a local stack. The CLI calls its main branch `production`; that label does **not** mean this is the application's production database.
 
 Latest recorded results:
 
@@ -44,7 +44,7 @@ The build has a nonblocking large-chunk warning. No claim is made that these tes
 
 ## Concerns and remaining work before release
 
-1. **Commit state:** The Vercel routing and fail-closed configuration fix is currently uncommitted. Review the diff, keep `.env*` and generated test artifacts out, and push the fix before testing the next hosted build.
+1. **Hosted database:** The public Vercel site currently points at the development Supabase project. Decide whether to keep it or provision a separate production project before storing irreplaceable data.
 2. **Intermittent live loading:** A prior local browser session briefly showed “Could not load quests” while retaining old cards. The UI now clears stale results and surfaces the actual server error with Retry; the underlying intermittent cause was not reproduced in automated tests. Capture the real error/network response if it returns. Verify immediate saves on real phone/iPad browsers.
 3. **Creation hardening:** The UI rejects past Once dates; the server `create_quest_once` RPC does not yet enforce that date rule. Hobby creation does not yet have the same request-ID idempotency as quest creation, so an uncertain network response followed by a retry deserves a separate regression and server safeguard.
 4. **Backups:** JSON export is owner-filtered and was checked with isolated in-memory recovery. There is **no in-app JSON import** and no verified production database backup schedule or full hosted restore drill. Follow `BACKUP_AND_RECOVERY.md` before storing irreplaceable data.
@@ -53,7 +53,7 @@ The build has a nonblocking large-chunk warning. No claim is made that these tes
 
 ## Suggested publishing sequence
 
-Vercel can host this Vite SPA; Hostinger is also possible. A Vercel project has been created at `progression-system-olive.vercel.app`, but its first deployment is not connected to Supabase. First decide whether the next working deployment is a **private staging beta** or a production release. Keep the Supabase project/environment for each explicit, then:
+Vercel can host this Vite SPA; Hostinger is also possible. A Vercel project is live at `progression-system-olive.vercel.app`, connected to the development Supabase project. First decide whether the next working deployment is a **private staging beta** or a production release. Keep the Supabase project/environment for each explicit, then:
 
 1. Commit and run all gates above from a clean checkout.
 2. For Vercel, use framework **Vite**, build command `npm run build`, and output directory `dist`. `vercel.json` in this checkout supplies the SPA rewrite so direct links such as `/quests/new` load. See [Vercel's Vite guide](https://vercel.com/docs/frameworks/frontend/vite).
