@@ -1,18 +1,64 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PageHeader, Segments } from '../../components/ui'
 import { accountCalendarDate, addDays, dateKey, formatDate, monthCells } from './dates'
+import { loadHistory, type HistoryBundle } from '../../data/history'
+import { summarizeDay } from '../../domain/history/summary'
+import { SleepCheckIn } from '../sleep/SleepCheckIn'
+import type { LocalDate } from '../../domain/types'
+import { DayDetails } from './DayDetails'
+const emptyHistory: HistoryBundle = {
+  timeZone: 'Asia/Kolkata',
+  events: [],
+  occurrences: [],
+  quests: [],
+  sleep: [],
+  hobbyOccurrences: [],
+  finishAwards: [],
+}
 export function CalendarPage() {
-  const [today] = useState(() => accountCalendarDate())
+  const [today, setToday] = useState(() => accountCalendarDate())
   const [selected, setSelected] = useState(today)
   const [mode, setMode] = useState<'Monthly' | 'Weekly' | 'Daily'>('Monthly')
   const [kind, setKind] = useState<'Stats' | 'Sleep'>('Stats')
+  const [history, setHistory] = useState<HistoryBundle>(emptyHistory)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const configured = Boolean(
+    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  )
   const cells =
     mode === 'Monthly'
       ? monthCells(selected)
       : mode === 'Weekly'
         ? Array.from({ length: 7 }, (_, i) => addDays(selected, i - selected.getUTCDay()))
         : [selected]
+  const visibleDates = cells.filter((date): date is Date => Boolean(date))
+  const from = dateKey(visibleDates[0] ?? selected) as LocalDate
+  const through = dateKey(visibleDates.at(-1) ?? selected) as LocalDate
+  const selectedKey = dateKey(selected) as LocalDate
+  const load = useCallback(async () => {
+    if (!configured) return
+    setLoading(true)
+    try {
+      const data = await loadHistory(from, through)
+      setHistory(data)
+      const accountToday = accountCalendarDate(new Date(), data.timeZone)
+      if (dateKey(accountToday) !== dateKey(today)) {
+        setToday(accountToday)
+        setSelected((current) => (dateKey(current) === dateKey(today) ? accountToday : current))
+      }
+      setError('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not load Calendar history.')
+    } finally {
+      setLoading(false)
+    }
+  }, [configured, from, through, today])
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
   function move(direction: number) {
     if (mode === 'Monthly')
       setSelected(
@@ -63,22 +109,50 @@ export function CalendarPage() {
                   {day}
                 </span>
               ))}
-            {cells.map((date, i) =>
-              date ? (
+            {cells.map((date, i) => {
+              if (!date) return <span key={`blank-${i}`} />
+              const key = dateKey(date) as LocalDate
+              const summary = summarizeDay(history.events, key)
+              const sleepNight = history.sleep.find((row) => row.sleep_night_date === key)
+              const cellValue =
+                kind === 'Sleep'
+                  ? sleepNight
+                    ? sleepNight.category === 'EARLY'
+                      ? 'Early'
+                      : sleepNight.category === 'MIDDLE'
+                        ? 'Middle'
+                        : 'Late'
+                    : '-'
+                  : summary.recorded
+                    ? summary.net > 0
+                      ? `+${summary.net}`
+                      : String(summary.net)
+                    : '-'
+              return (
                 <button
-                  key={dateKey(date)}
-                  className={`calendar-cell ${dateKey(date) === dateKey(selected) ? 'selected' : ''} ${dateKey(date) === dateKey(today) ? 'is-today' : ''}`}
+                  key={key}
+                  className={`calendar-cell ${key === selectedKey ? 'selected' : ''} ${key === dateKey(today) ? 'is-today' : ''}`}
                   aria-label={formatDate(date, { dateStyle: 'full' })}
-                  aria-pressed={dateKey(date) === dateKey(selected)}
+                  aria-pressed={key === selectedKey}
                   onClick={() => setSelected(date)}
                 >
                   <span>{date.getUTCDate()}</span>
-                  <span className="no-record">-</span>
+                  <span
+                    className={
+                      kind === 'Stats' && summary.recorded
+                        ? summary.net > 0
+                          ? 'positive'
+                          : summary.net < 0
+                            ? 'negative'
+                            : 'recorded-zero'
+                        : 'no-record'
+                    }
+                  >
+                    {cellValue}
+                  </span>
                 </button>
-              ) : (
-                <span key={`blank-${i}`} />
-              ),
-            )}
+              )
+            })}
           </div>
           <p className="calendar-legend">
             <span className="positive">+ Gain</span>
@@ -92,21 +166,59 @@ export function CalendarPage() {
         </section>
         <section className="detail-pane day-details" aria-label="Day details">
           <p className="section-label">Day details · {kind}</p>
-          <h2>
-            {formatDate(selected, {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </h2>
-          <p className="no-record-hero">-</p>
-          <p>No {kind === 'Stats' ? 'activity' : 'sleep'} recorded.</p>
-          <p className="meta">
-            {kind === 'Stats'
-              ? 'An unreported day is different from a recorded zero. Historical totals will appear here after recording is connected.'
-              : 'Sleep is recorded by sleep-night date. No bedtime or Energy is inferred from a missing entry.'}
-          </p>
+          <div className="day-detail-nav">
+            <button
+              className="icon-button"
+              aria-label="Previous date"
+              onClick={() => setSelected(addDays(selected, -1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <h2>
+              {formatDate(selected, {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </h2>
+            <button
+              className="icon-button"
+              aria-label="Next date"
+              onClick={() => setSelected(addDays(selected, 1))}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          {loading && <p className="meta">Loading history…</p>}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}{' '}
+              <button className="text-link" onClick={() => void load()}>
+                Retry
+              </button>
+            </p>
+          )}
+          {kind === 'Stats' ? (
+            <DayDetails day={selectedKey} history={history} onChanged={() => void load()} />
+          ) : (
+            <>
+              <p>
+                {history.sleep.some((row) => row.sleep_night_date === selectedKey)
+                  ? `${history.sleep.find((row) => row.sleep_night_date === selectedKey)?.category === 'EARLY' ? 'Excellent' : history.sleep.find((row) => row.sleep_night_date === selectedKey)?.category === 'MIDDLE' ? 'Medium' : 'Low'} Energy from this sleep night.`
+                  : 'No sleep recorded.'}
+              </p>
+              <p className="meta">
+                Sleep is recorded by sleep-night date. No bedtime or Energy is inferred from a
+                missing entry.
+              </p>
+              <SleepCheckIn
+                key={selectedKey}
+                initialNight={selectedKey as LocalDate}
+                onSaved={() => void load()}
+              />
+            </>
+          )}
         </section>
       </div>
     </>

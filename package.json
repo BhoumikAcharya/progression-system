@@ -12,17 +12,24 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "format": "prettier --write src tests/e2e *.ts *.js *.json index.html public/icon.svg .github/workflows/checks.yml",
-    "format:check": "prettier --check src tests/e2e *.ts *.js *.json index.html public/icon.svg .github/workflows/checks.yml"
+    "test:pwa": "VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= npm run build && playwright test -c playwright.pwa.config.ts",
+    "test:connected": "playwright test -c playwright.connected.config.ts",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:db && npm run build",
+    "format": "prettier --write src tests/e2e tests/pwa tests/connected scripts supabase/tests/*.mjs *.ts *.js *.json index.html public/*.svg public/*.js public/*.webmanifest .github/workflows/checks.yml",
+    "format:check": "prettier --check src tests/e2e tests/pwa tests/connected scripts supabase/tests/*.mjs *.ts *.js *.json index.html public/*.svg public/*.js public/*.webmanifest .github/workflows/checks.yml",
+    "test:db": "node supabase/tests/migration-smoke.mjs",
+    "test:live": "node scripts/live-supabase-check.mjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "lucide-react": "^1.69.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.4",
@@ -35,6 +42,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.14.0",
     "prettier": "^3.9.10",
+    "supabase": "^3.0.0",
     "tailwindcss": "^4.3.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",

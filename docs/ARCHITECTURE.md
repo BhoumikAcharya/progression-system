@@ -42,6 +42,8 @@ Supabase Auth with one privately provisioned email/password account; no public s
 
 **Critical:** Reward awarding, editing and correction are transaction boundaries. PostgreSQL unique constraints + RPC functions or equivalent server-authoritative mechanism must make a single occurrence idempotent across devices and concurrent clicks. Do not make a client `insert` plus separate client `increment stats` calls. No trusting client-derived totals without recomputation/validation. Consider owner-checked `SECURITY DEFINER` functions with restricted execute rights, explicit `auth.uid()` validation, carefully configured `search_path`, and row locks; or safe invoker functions and RLS. Service-role operations stay server-side only.
 
+Quest creation uses a client-generated request UUID persisted with the pending browser draft. The `create_quest_once` RPC stores that UUID and the request payload in a private table, locks the owner profile during creation, and returns the original quest for a matching retry. The client clears the pending request only after a confirmed save.
+
 ## Persistence and projections
 
 Store canonical activity/outcome/correction events and configuration snapshots; derive or transactionally refresh current stat totals, corrected lifetime XP, monotonic level and daily summaries. Use audit events or transactional compensations; don't merely delete incorrect historical rewards. Create version numbers on mutable occurrences to reject stale updates. Ensure sleep/quest/hobby finish idempotency keys.

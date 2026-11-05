@@ -5,7 +5,7 @@ export type WriteResult<T> =
 export interface ProfileRepository {
   load(): Promise<PlayerProfile>
   updatePreferences(
-    preferences: Pick<PlayerProfile, 'displayName' | 'theme'>,
+    preferences: Partial<Pick<PlayerProfile, 'displayName' | 'theme'>>,
   ): Promise<WriteResult<PlayerProfile>>
 }
 export interface AuthSession {

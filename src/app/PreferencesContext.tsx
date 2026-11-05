@@ -5,6 +5,8 @@ export interface Preferences {
   setTheme: (theme: Theme) => void
   name: string
   setName: (name: string) => void
+  refreshAccount: () => Promise<void>
+  clearAccount: () => void
   storageError: boolean
 }
 export const PreferencesContext = createContext<Preferences | null>(null)

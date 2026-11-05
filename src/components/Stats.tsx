@@ -1,12 +1,5 @@
-import { BookOpen, Dumbbell, Heart, Shield, Wallet } from 'lucide-react'
+import { statDetails } from './statDetails'
 import { STAT_KEYS, type StatEffects } from '../domain/types'
-const statDetails = {
-  STR: { name: 'Strength', Icon: Dumbbell },
-  INT: { name: 'Intelligence', Icon: BookOpen },
-  VIT: { name: 'Vitality', Icon: Heart },
-  DIS: { name: 'Discipline', Icon: Shield },
-  BNK: { name: 'Bank', Icon: Wallet },
-}
 export function Stats({ values }: { values: StatEffects }) {
   return (
     <dl className="stats">

@@ -71,8 +71,11 @@ Six bottom destinations, in order: `Status`, `Quests`, `To-Dos`, `Calendar`, `Ho
 ### Archives
 
 - Hub > Quest Archive separates archived restorable recurring quests from view-only completed one-time quests. Archive resets streak; restore starts new streak. Deletion preserves histories.
+- Quest Archive also lists valid completed quest occurrences across all dates, with their activity dates.
 - Hub > Hobby Archive separates Paused (restorable) from Finished (permanent) using simple divider rows, **no per-hobby icons and no cards per row**.
+- Hobby Archive also lists valid completed subtasks across all dates, with their activity dates.
 - Hub > To-Do Archive opens embedded collapsible archive in To-Dos, with Restore and confirmation-protected Clear.
+- The inline To-Do Archive shows completed roots and their checklist children across the full To-Do history.
 
 ### Morning System Report
 

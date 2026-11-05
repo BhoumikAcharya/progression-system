@@ -54,6 +54,8 @@ Per account first open after daily cutoff, show preceding quest-day report in fu
 
 Quest Archive: restorable archived recurring vs view-only completed one-time; restore resets streak. Hobby Archive: paused vs finished, simple rows, no icons-per-row, restore only paused. To-Do Archive: inline section, Restore and Confirm Clear. Deleting quest/hobby must retain reward history and calendar evidence.
 
+Quest and Hobby Archive also show completed occurrences from all dates, including history from definitions later archived or deleted. To-Do Archive has no date filter and displays completed checklist children beneath their parent.
+
 ## Settings
 
 Player name editor; Appearance theme selection (default Inked Fantasy, alternative OLED Black) applies instantly and persists; System Rules read-only; data export; real sync status and failure messaging. No UI to casually edit XP formula, stat definitions, level multiplier, sleep categories or 03:00 rule.

@@ -1,6 +1,34 @@
+import { useCallback, useEffect, useState } from 'react'
 import { EmptyState, PageHeader, Section } from '../../components/ui'
-import { SleepCheckIn } from '../quests/QuestsPage'
+import { SleepCheckIn } from '../sleep/SleepCheckIn'
+import { supabaseClient } from '../../data/supabase'
+interface SleepHistoryRow {
+  sleep_night_date: string
+  category: 'EARLY' | 'MIDDLE' | 'LATE'
+}
 export function SleepPage() {
+  const [nights, setNights] = useState<SleepHistoryRow[]>([])
+  const [error, setError] = useState('')
+  const configured = Boolean(
+    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  )
+  const load = useCallback(async () => {
+    if (!configured) return
+    const { data, error: loadError } = await supabaseClient()
+      .from('sleep_records')
+      .select('sleep_night_date,category')
+      .order('sleep_night_date', { ascending: false })
+      .limit(14)
+    if (loadError) setError(loadError.message)
+    else {
+      setNights((data ?? []) as SleepHistoryRow[])
+      setError('')
+    }
+  }, [configured])
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
   return (
     <>
       <PageHeader
@@ -8,24 +36,29 @@ export function SleepPage() {
         back="/hub"
         subtitle="Sleep-night records · separate from the 03:00 quest reset"
       />
-      <SleepCheckIn />
+      <SleepCheckIn showDate onSaved={() => void load()} />
       <Section title="Recent nights">
-        <EmptyState title="No nights recorded.">
-          Sleep Log, Quests, and Calendar will share the same record once connected.
-        </EmptyState>
-      </Section>
-    </>
-  )
-}
-export function ArchivePage({ kind }: { kind: 'Quest' | 'Hobby' }) {
-  return (
-    <>
-      <PageHeader title={`${kind} Archive`} back="/hub" />
-      <Section title={kind === 'Quest' ? 'Archived · can restore' : 'Paused · can restore'}>
-        <p className="meta">Nothing archived yet.</p>
-      </Section>
-      <Section title={kind === 'Quest' ? 'Completed one-time · view only' : 'Finished · permanent'}>
-        <p className="meta">Nothing completed yet. Earned history will be preserved.</p>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        {nights.length ? (
+          nights.map((night) => (
+            <div className="todo-archive-row" key={night.sleep_night_date}>
+              <span>{night.sleep_night_date}</span>
+              <span className="meta">
+                {night.category === 'EARLY'
+                  ? 'Excellent'
+                  : night.category === 'MIDDLE'
+                    ? 'Medium'
+                    : 'Low'}
+              </span>
+            </div>
+          ))
+        ) : (
+          <EmptyState title="No nights recorded.">Saved sleep nights will appear here.</EmptyState>
+        )}
       </Section>
     </>
   )

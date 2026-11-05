@@ -6,6 +6,8 @@ import refresh from 'eslint-plugin-react-refresh'
 export default tseslint.config(
   { ignores: ['dist', 'node_modules', 'test-results', 'playwright-report', 'design'] },
   js.configs.recommended,
+  { files: ['**/*.mjs'], languageOptions: { globals: globals.node } },
+  { files: ['public/sw.js'], languageOptions: { globals: globals.serviceworker } },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

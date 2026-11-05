@@ -1,13 +1,15 @@
-# Progression System — Codex Handoff (v1)
+# Progression System
 
-A private, mobile-first PWA for tracking real-life progression. **Default theme: Inked Fantasy. Alternate theme: OLED Black.** This repository starter contains *instructions, product requirements, historical rule decisions, technical plans, tests, and the original design agent's reference assets*. It is **not the application source code**; Codex will scaffold that.
+A private, mobile-first PWA for tracking real-life progression. **Default theme: Inked Fantasy. Alternate theme: OLED Black.** The application source, database migrations, tests, product requirements, and original design references are in this repository.
 
-## What to give Codex
+**Current implementation and release handoff:** [docs/IMPLEMENTATION_HANDOFF.md](docs/IMPLEMENTATION_HANDOFF.md). The milestone sections below record earlier checkpoints and may describe work that has since been completed.
 
-1. Put the **contents** of this folder in the root of a new private GitHub repository.
-2. In Codex, open that repository. Ask it to read `AGENTS.md`, `docs/DECISIONS.md`, `docs/PRD.md`, `docs/PROGRESSION_RULES.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/USER_FLOWS.md`, `docs/DESIGN_SYSTEM.md`, `docs/ACCEPTANCE_TESTS.md`, and the two `design/*/design-spec.md` files **before editing code**.
-3. Start with `prompts/CODEX_START.md`. Let Codex implement milestone by milestone; run tests and inspect on a phone-sized viewport after each milestone.
-4. Never commit credentials. Create `.env.local` using `.env.example` once Codex scaffolds the project. Deployment is deliberately deferred.
+## For future coding agents
+
+1. Read [the current implementation handoff](docs/IMPLEMENTATION_HANDOFF.md) for completed work, verified checks, current risks, and the publishing sequence.
+2. Follow `AGENTS.md` and the product source-of-truth order below before changing behavior or UI. Preserve the two original `design/*` references.
+3. Keep `.env.local` and `.env.live-test.local` private and Git-ignored. Use `.env.example` for public client configuration names only.
+4. Review the existing uncommitted implementation before creating commits or deploying it.
 
 ## Authority order in conflicts
 
@@ -86,3 +88,33 @@ Only the theme and preview name persist in browser storage. Settings truthfully 
 Quest/sleep/To-Do/hobby creation, rewards, history, real authentication, export, full-screen reports, and cross-device sync are intentionally deferred. PWA installation, service-worker caching and production deployment are not enabled in this milestone. Refreshing any browser route works through Vite's SPA fallback; the eventual host must also supply an SPA fallback.
 
 Do not populate production credentials yet. `.env.example` reserves public Supabase settings for Milestone 2. Never put a service-role key in a `VITE_` variable.
+
+## Milestone 2 local domain/database checks
+
+Run `npm run test:db` for embedded PostgreSQL migration and transaction checks, or `npm run check` for the full unit, database, type, lint and build gate. See `MILESTONE_2.md` for scope and the remaining two-session Supabase gate. The UI remains a local preview until authenticated data access is connected.
+
+## Milestone 3 local quest workflow
+
+The quest editor supports Standard, Volatile and Routine drafts. With a connected Supabase project and signed-in user, the editor saves through `create_quest`; the Quests screen records Standard and Volatile outcomes and Routine steps through server transactions. Status reads server-owned totals. Apply all migrations in `supabase/migrations/` to the connected project before using those flows. Only public URL and publishable key belong in `.env.local` (see `.env.example`); never put a service-role key in the frontend.
+
+Without Supabase settings, the app remains a useful local layout preview. Quest drafts are not saved, and the editor says so when Save is pressed. Hobby creation and the other activity screens remain for subsequent milestones. Run `npm run check` and `npm run test:e2e` to verify this milestone locally. See [MILESTONE_3.md](MILESTONE_3.md) for completed scope and remaining integration checks.
+
+## Milestone 4 local activity workflows
+
+Hobbies, To-Dos and Sleep Log now have authenticated server-backed workflows. Hobbies support independently rewarded scheduled subtasks, editing, reordering, overdue rescheduling, Archive/Restore/Delete and a one-time Finish reward. To-Dos support one-level checklists and an inline archive without stats or XP. Quests, Sleep Log and Calendar use the same sleep-night record. Quest and Hobby archives are connected to server state. See [MILESTONE_4.md](MILESTONE_4.md) for the implementation and validation summary.
+
+The open local Vite preview does not contain an authenticated account. To exercise saves, use a private Supabase project with migrations `202611050001` through `202611050014` applied and add its public URL and publishable key to `.env.local`. Do not use a service-role key. No Hostinger deployment has been performed.
+
+## Milestone 5 Calendar and report
+
+Calendar now reads recorded history and supports versioned corrections to quest, hobby subtask and Finish awards. The fullscreen Morning Report is claimed once per account quest day after 03:00, and any past date can be opened manually from Calendar. See [MILESTONE_5.md](MILESTONE_5.md) for tested behavior and live integration limits. A connected project needs all migrations through `202611050018`; the unconnected local preview remains read-only for private activity.
+
+## Milestone 6 export and installability
+
+Apply migration `202611050019` before using **Settings → Download JSON backup** with a connected account. The export is owner-filtered, versioned, and downloaded directly to your device; JSON import is not available. See [BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md) for backup and recovery limits.
+
+The production build has an install manifest and online-first service worker. To check the production shell locally, run `npm run test:pwa`; to preview it manually, run `npm run build` then `npm run preview`. The Vite development server intentionally does not register a service worker. Offline reopening of the shell does not mean private records or edits are available offline. See [MILESTONE_6.md](MILESTONE_6.md) for validation and remaining device/live-project checks.
+
+## Connected-account readiness — historical checkpoint
+
+With a signed-in account, name and theme load from the server; Settings saves each field independently and provides sign-out. `npm run test:connected` exercises the route and preference flow against mocked Supabase responses. The later development-project live checks and remaining production gates are recorded in [the current implementation handoff](docs/IMPLEMENTATION_HANDOFF.md).
