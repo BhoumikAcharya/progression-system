@@ -1,9 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('production shell opens offline without claiming activity was saved', async ({
-  page,
-  context,
-}) => {
+test('unconfigured production shell stays closed offline', async ({ page, context }) => {
   await page.goto('/status')
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   const activeState = await page.evaluate(
@@ -12,10 +9,8 @@ test('production shell opens offline without claiming activity was saved', async
   expect(activeState).toBe('activated')
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Player' })).toBeVisible()
-  await expect(page.getByRole('status')).toContainText('Nothing is being synced.')
+  await expect(page.getByRole('heading', { name: 'Sign-in is unavailable' })).toBeVisible()
   await page.goto('/quests/new')
-  await page.getByPlaceholder('Name your quest').fill('Offline draft')
-  await page.getByRole('button', { name: 'Save Quest' }).click()
-  await expect(page.getByRole('alert')).toContainText('This draft has not been saved.')
+  await expect(page.getByRole('heading', { name: 'Sign-in is unavailable' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save Quest' })).toHaveCount(0)
 })

@@ -1,6 +1,6 @@
 # Progression System — implementation handoff
 
-**Status as of 2026-11-06:** The six implementation milestones are represented in the working tree. The app builds and runs locally against the **development** Supabase project. Automated local, browser, and live development-database checks have passed. **No frontend deployment or production Supabase project has been set up.** This is ready for a controlled private beta after the release gates below, not yet a verified production release.
+**Status as of 2026-11-06:** The six implementation milestones are represented in the working tree. The app builds and runs locally against the **development** Supabase project. Automated local, browser, and live development-database checks have passed. A Vercel project has been imported, but its first deployment is an **unconnected preview build** and direct `/status` requests return 404. The fix in this checkout is pending commit/push and Vercel environment setup. **No production Supabase project has been set up.** This is ready for a controlled private beta after the release gates below, not yet a verified production release.
 
 This file is the current-status map for future coding agents. Product behavior is governed by `AGENTS.md`, then `docs/DECISIONS.md` and `docs/PROGRESSION_RULES.md`; this file does not override them. `MILESTONE_1.md` through `MILESTONE_6.md`, `INTEGRATION_READINESS.md`, and parts of `README.md` are historical snapshots and contain statements that were true before the development project was connected.
 
@@ -34,13 +34,13 @@ Latest recorded results:
 - `npm run test:e2e` — 52 passed across phone/iPad and both themes. The preview suite runs on isolated port 5175 so an authenticated local server on 5173 cannot affect it.
 - `npm run test:connected` — 4 passed using mocked Supabase responses, including save visibility/schedule matrix, archive removal persistence, preferences, and Hobby loading.
 - `npm run test:live` — 10 passed against the development project using two private test accounts: auth, owner isolation, idempotent creation, concurrent completion, second-device sync, archive visibility/RLS, correction, JSON export, and isolated in-memory recovery.
-- `npm run test:pwa` — 1 passed after isolating its **unconnected preview** build from `.env.local`; verifies offline shell and visible failed save. `npm run format:check` passed.
+- `npm run test:pwa` — 1 passed after isolating its **unconfigured production** build from `.env.local`; verifies the offline shell remains closed when sign-in settings are missing. `npm run format:check` passed.
 
 The build has a nonblocking large-chunk warning. No claim is made that these tests prove performance under a large history or Safari/iPadOS installation behavior.
 
 ## Concerns and remaining work before release
 
-1. **Commit state:** Most post-Milestone-1 implementation is still uncommitted or untracked on `main` (last commit `04eb976`). Review the full diff, keep `.env*` and generated test artifacts out, and make a clean commit before connecting a Git-based host. Do not discard the working tree.
+1. **Commit state:** The Vercel routing and fail-closed configuration fix is currently uncommitted. Review the diff, keep `.env*` and generated test artifacts out, and push the fix before testing the next hosted build.
 2. **Intermittent live loading:** A prior local browser session briefly showed “Could not load quests” while retaining old cards. The UI now clears stale results and surfaces the actual server error with Retry; the underlying intermittent cause was not reproduced in automated tests. Capture the real error/network response if it returns. Verify immediate saves on real phone/iPad browsers.
 3. **Creation hardening:** The UI rejects past Once dates; the server `create_quest_once` RPC does not yet enforce that date rule. Hobby creation does not yet have the same request-ID idempotency as quest creation, so an uncertain network response followed by a retry deserves a separate regression and server safeguard.
 4. **Backups:** JSON export is owner-filtered and was checked with isolated in-memory recovery. There is **no in-app JSON import** and no verified production database backup schedule or full hosted restore drill. Follow `BACKUP_AND_RECOVERY.md` before storing irreplaceable data.
@@ -49,11 +49,11 @@ The build has a nonblocking large-chunk warning. No claim is made that these tes
 
 ## Suggested publishing sequence
 
-Vercel can host this Vite SPA; Hostinger is also possible. Neither has been configured. First decide whether the next URL is a **private staging beta** or a production release. Keep the Supabase project/environment for each explicit, then:
+Vercel can host this Vite SPA; Hostinger is also possible. A Vercel project has been created at `progression-system-olive.vercel.app`, but its first deployment is not connected to Supabase. First decide whether the next working deployment is a **private staging beta** or a production release. Keep the Supabase project/environment for each explicit, then:
 
 1. Commit and run all gates above from a clean checkout.
-2. For a Vercel project, use framework **Vite**, build command `npm run build`, and output directory `dist`. Add an SPA rewrite from non-asset routes to `/index.html` so direct links such as `/quests/new` load. See [Vercel's Vite guide](https://vercel.com/docs/frameworks/frontend/vite).
-3. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the intended environment in the host's environment settings. These are browser-public values; never add secret/service-role keys. Rebuild after changing them.
+2. For Vercel, use framework **Vite**, build command `npm run build`, and output directory `dist`. `vercel.json` in this checkout supplies the SPA rewrite so direct links such as `/quests/new` load. See [Vercel's Vite guide](https://vercel.com/docs/frameworks/frontend/vite).
+3. Configure **exactly** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the intended environment in Vercel Project Settings → Environment Variables. The Vercel Supabase integration supplies `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, which this Vite app does not read automatically. These are browser-public values; never add secret/service-role keys to `VITE_` variables. Verify the URL points to the same project as the intended test accounts, then rebuild/redeploy after changing variables.
 4. Set the matching Supabase Auth Site URL and exact production redirect URL(s); retain localhost redirects for development as needed. See [Supabase redirect guidance](https://supabase.com/docs/guides/auth/redirect-urls).
 5. Deploy a preview, test sign-in and each primary workflow with disposable accounts, verify RLS and backup, then approve the production promotion. Do not migrate test-account data casually.
 

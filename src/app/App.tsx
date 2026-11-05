@@ -336,6 +336,16 @@ export function App() {
   function clearAccount() {
     setNameState('Player')
   }
+  if (import.meta.env.PROD && !configured)
+    return (
+      <main className="loading-screen" role="alert">
+        <h1>Sign-in is unavailable</h1>
+        <p>
+          This deployment is missing its public Supabase connection settings. The site owner needs
+          to configure them in the hosting project and redeploy.
+        </p>
+      </main>
+    )
   return (
     <PreferencesContext.Provider
       value={{ theme, setTheme, name, setName, refreshAccount, clearAccount, storageError }}
