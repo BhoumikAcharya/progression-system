@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progression System — Add / Edit Quest (Inked Fantasy)</title>
+<style>
+  :root{--page:#100e09;--bg:#13110c;--surface:#1a160f;--line:rgba(201,169,106,.22);
+    --line-soft:rgba(201,169,106,.12);--ac:#c9a96a;--txt:#efe7d4;--mut:#8f8468;
+    --faint:#6b6350;--pos:#a9c187;--neg:#cd9a82;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;}
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:var(--page);color:var(--txt);padding:40px 24px 80px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1360px;margin:0 auto;}
+  .masthead h1{font-size:22px;font-weight:650;letter-spacing:-.02em;margin:0;font-family:var(--serif);}
+  .masthead p{color:var(--mut);font-size:14px;line-height:1.55;margin:10px 0 0;max-width:800px;}
+  .masthead p b{color:var(--txt);font-weight:600;}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 36px;}
+  .meta span{font-size:11.5px;color:var(--mut);border:1px solid var(--line);padding:5px 11px;border-radius:999px;}
+  .meta b{color:var(--ac);}
+  .row{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .col{flex:1 1 384px;max-width:420px;min-width:330px;}
+  .tag{font-size:12px;font-weight:700;letter-spacing:.1em;margin:0 2px 15px;text-transform:uppercase;color:var(--ac);}
+  .tag span{color:var(--mut);font-weight:500;letter-spacing:0;text-transform:none;margin-left:8px;font-size:12.5px;}
+
+  .phone{width:384px;max-width:100%;margin:0 auto;background:#000;border:10px solid #211c12;border-radius:46px;
+    overflow:hidden;box-shadow:0 30px 70px -30px rgba(0,0,0,.9),0 0 0 1px #2c2518 inset;position:relative;}
+  .screen{height:812px;background:var(--bg);display:flex;flex-direction:column;position:relative;}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 26px 2px;font-size:12.5px;font-weight:600;flex:0 0 auto;}
+  .content{flex:1 1 auto;overflow-y:auto;padding:14px 24px 10px;}
+  .content::-webkit-scrollbar{display:none;}
+  nav.tab{flex:0 0 auto;display:flex;justify-content:space-between;padding:10px 14px 20px;border-top:1px solid var(--line);background:var(--bg);}
+  nav.tab a{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);font-size:9.5px;text-decoration:none;flex:1;}
+  nav.tab a svg{width:21px;height:21px;}
+  nav.tab a.on{color:var(--ac);}
+  .ico{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .sico{stroke:var(--ac);fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+  .serif{font-family:var(--serif);}.pos{color:var(--pos);}.neg{color:var(--neg);}
+
+  .ehead{display:flex;align-items:center;gap:14px;padding:6px 0 4px;}
+  .ehead .bk{font-size:24px;color:var(--ac);line-height:1;}
+  .ehead .ti{font-size:21px;font-weight:500;font-family:var(--serif);flex:1;}
+  .tsel{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12px;color:var(--txt);}
+  .tsel .cx{color:var(--ac);font-size:10px;}
+  .tsel.lock{color:var(--mut);border-style:dashed;}
+  .field{padding:17px 0;border-top:1px solid var(--line-soft);}
+  .field .lb{font-size:10px;letter-spacing:.16em;color:var(--mut);text-transform:uppercase;margin-bottom:9px;}
+  .field .vl{font-size:16px;}
+  .field .vl.ph{color:var(--faint);}
+  .sched{display:flex;flex-wrap:wrap;gap:8px;}
+  .sched .s{border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px;color:var(--mut);}
+  .sched .s.on{background:var(--ac);color:#13110c;font-weight:600;}
+  .srow{display:flex;align-items:center;gap:14px;padding:14px 0;}
+  .srow+.srow{border-top:1px solid var(--line-soft);}
+  .srow svg{width:20px;height:20px;flex:0 0 auto;}
+  .srow .nm{flex:1;}
+  .srow .nm .n{font-size:14.5px;}
+  .srow .nm .ab{font-size:10.5px;color:var(--faint);letter-spacing:.08em;margin-top:2px;}
+  .stepper{display:flex;align-items:center;gap:15px;}
+  .stepper .b{width:31px;height:31px;border:1px solid var(--line);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ac);}
+  .stepper .v{width:36px;text-align:center;font-size:18px;font-weight:500;font-family:var(--serif);}
+  .zero{color:var(--faint);}
+  .xp{display:flex;justify-content:space-between;align-items:center;padding:17px 0;border-top:1px solid var(--line-soft);}
+  .xp .k{font-size:10px;letter-spacing:.16em;color:var(--mut);text-transform:uppercase;}
+  .xp .val{font-size:19px;font-weight:500;font-family:var(--serif);color:var(--ac);}
+  .xp .note{font-size:10.5px;color:var(--faint);margin-top:3px;}
+  .outsel{display:flex;gap:8px;}
+  .outsel .o{flex:1;text-align:center;border:1px solid var(--line);border-radius:10px;padding:11px 0;font-size:13px;color:var(--mut);}
+  .outsel .o.on{border-color:var(--ac);color:var(--txt);background:#201a11;}
+  .outsel .o small{display:block;font-size:9.5px;margin-top:3px;}
+  .stask{display:flex;align-items:center;gap:12px;padding:12px 0;font-size:14px;}
+  .stask+.stask{border-top:1px solid var(--line-soft);}
+  .stask .gr{color:var(--faint);font-size:15px;}
+  .stask .nm{flex:1;}
+  .stask .x{color:var(--faint);font-size:16px;}
+  .stask .dt{font-size:10.5px;color:var(--faint);}
+  .addsub{display:flex;align-items:center;gap:10px;padding:13px 0;color:var(--ac);font-size:13.5px;border-top:1px solid var(--line-soft);}
+  .addsub .p{width:20px;height:20px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+  .savebar{flex:0 0 auto;padding:12px 20px;background:var(--bg);border-top:1px solid var(--line);}
+  .savebtn{width:100%;background:var(--ac);color:#13110c;text-align:center;padding:14px;border-radius:11px;font-size:15px;font-weight:600;}
+
+  .notes{margin:22px 4px 0;}
+  .notes h3{font-size:12px;font-weight:700;margin:0 0 9px;}
+  .notes ul{margin:0;padding-left:16px;}
+  .notes li{font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:7px;}
+  .notes li b{color:var(--txt);font-weight:600;}
+  .footer{max-width:900px;margin:58px auto 0;padding-top:26px;border-top:1px solid var(--line);color:var(--mut);font-size:13px;line-height:1.65;text-align:center;}
+  .footer b{color:var(--txt);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1>Add / Edit Quest — Inked Fantasy</h1>
+    <p>Same shared page and four type variants, re-skinned: dividers over boxes, serif numerals on the stat steppers and XP preview, a <b>filled brass Save</b>. Type selector locks on edit (Routine frame).</p>
+  </div>
+  <div class="meta"><span><b>XP</b> 150 × positive points</span><span>Stepper value in serif</span><span>Type locked on edit</span></div>
+
+  <div class="row">
+
+    <!-- STANDARD -->
+    <div class="col">
+      <div class="tag">Standard<span>single checkbox</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Add Quest</span><span class="tsel">Standard <span class="cx">▾</span></span></div>
+          <div class="field" style="border-top:none"><div class="lb">Quest name</div><div class="vl">Gym Workout</div></div>
+          <div class="field"><div class="lb">Description</div><div class="vl ph">Add a description (optional)</div></div>
+          <div class="field"><div class="lb">Schedule</div><div class="sched"><span class="s on">Every Day</span><span class="s">Days</span><span class="s">Monthly</span><span class="s">Yearly</span><span class="s">Once</span></div></div>
+          <div class="field"><div class="lb">Stat effects</div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M3 12h2"/><path d="M19 12h2"/><rect x="5.5" y="8.5" width="2.6" height="7" rx="1"/><rect x="15.9" y="8.5" width="2.6" height="7" rx="1"/><path d="M8.1 12h7.8"/></svg><div class="nm"><div class="n">Strength</div><div class="ab">STR</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+2</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg><div class="nm"><div class="n">Intelligence</div><div class="ab">INT</div></div><div class="stepper"><span class="b">−</span><span class="v zero">0</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="nm"><div class="n">Vitality</div><div class="ab">VIT</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+1</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="nm"><div class="n">Discipline</div><div class="ab">DIS</div></div><div class="stepper"><span class="b">−</span><span class="v zero">0</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h12v3"/><path d="M3 7v10a2 2 0 0 0 2 2h14V9H5a2 2 0 0 1-2-2z"/></svg><div class="nm"><div class="n">Bank</div><div class="ab">BNK</div></div><div class="stepper"><span class="b">−</span><span class="v zero">0</span><span class="b">+</span></div></div>
+          </div>
+          <div class="xp"><div><div class="k">XP reward</div><div class="note">3 positive points × 150</div></div><div class="val">+450 XP</div></div>
+        </div>
+        <div class="savebar"><div class="savebtn">Save Quest</div></div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Stepper values in serif; positive gold-green, zero faint. Filled brass Save.</li></ul></div>
+    </div>
+
+    <!-- VOLATILE -->
+    <div class="col">
+      <div class="tag">Volatile<span>two outcomes</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Add Quest</span><span class="tsel">Volatile <span class="cx">▾</span></span></div>
+          <div class="field" style="border-top:none"><div class="lb">Quest name</div><div class="vl">Smoke-free day?</div></div>
+          <div class="field"><div class="lb">Schedule</div><div class="sched"><span class="s on">Every Day</span><span class="s">Days</span><span class="s">Monthly</span><span class="s">Once</span></div></div>
+          <div class="field"><div class="lb">Outcomes — configure each</div><div class="outsel"><div class="o on">Yes<small>editable label</small></div><div class="o">No<small>editable label</small></div></div></div>
+          <div class="field"><div class="lb">Effects for “Yes”</div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M3 12h2"/><path d="M19 12h2"/><rect x="5.5" y="8.5" width="2.6" height="7" rx="1"/><rect x="15.9" y="8.5" width="2.6" height="7" rx="1"/><path d="M8.1 12h7.8"/></svg><div class="nm"><div class="n">Strength</div></div><div class="stepper"><span class="b">−</span><span class="v zero">0</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="nm"><div class="n">Vitality</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+1</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="nm"><div class="n">Discipline</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+1</span><span class="b">+</span></div></div>
+          </div>
+          <div class="xp"><div><div class="k">XP · “Yes”</div><div class="note">“No” → VIT −1 · DIS −1 · 0 XP</div></div><div class="val">+300 XP</div></div>
+        </div>
+        <div class="savebar"><div class="savebtn">Save Quest</div></div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Outcome tabs collapse ten stat rows into two; selected tab warm-filled with gold border.</li></ul></div>
+    </div>
+
+    <!-- ROUTINE edit -->
+    <div class="col">
+      <div class="tag">Routine · Editing<span>type locked</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Edit Quest</span><span class="tsel lock">Routine 🔒</span></div>
+          <div class="field" style="border-top:none"><div class="lb">Quest name</div><div class="vl">Nighttime Routine</div></div>
+          <div class="field"><div class="lb">Schedule</div><div class="sched"><span class="s on">Every Day</span><span class="s">Days</span><span class="s">Monthly</span><span class="s">Once</span></div></div>
+          <div class="field"><div class="lb">Subtasks · reorder, rename, remove</div>
+            <div class="stask"><span class="gr">⋮⋮</span><span class="nm">Brush teeth</span><span class="x">×</span></div>
+            <div class="stask"><span class="gr">⋮⋮</span><span class="nm">Apply hair serum</span><span class="x">×</span></div>
+            <div class="stask"><span class="gr">⋮⋮</span><span class="nm">Wash face</span><span class="x">×</span></div>
+            <div class="stask"><span class="gr">⋮⋮</span><span class="nm">Take multivitamins</span><span class="x">×</span></div>
+            <div class="addsub"><span class="p">+</span>Add subtask</div>
+          </div>
+          <div class="field"><div class="lb">Parent reward — only the routine earns</div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="nm"><div class="n">Vitality</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+1</span><span class="b">+</span></div></div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="nm"><div class="n">Discipline</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+1</span><span class="b">+</span></div></div>
+          </div>
+          <div class="xp"><div><div class="k">XP reward</div><div class="note">awarded when all 4 subtasks checked</div></div><div class="val">+300 XP</div></div>
+        </div>
+        <div class="savebar"><div class="savebtn">Save Changes</div></div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Edit state: locked dashed type chip, “Save Changes”. Reward only at the parent.</li></ul></div>
+    </div>
+
+    <!-- HOBBY -->
+    <div class="col">
+      <div class="tag">Hobby<span>per-subtask rewards</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Add Quest</span><span class="tsel">Hobby <span class="cx">▾</span></span></div>
+          <div class="field" style="border-top:none"><div class="lb">Hobby name</div><div class="vl">Master's Prep — Chip Design</div></div>
+          <div class="field"><div class="lb">Description</div><div class="vl ph">Add a description (optional)</div></div>
+          <div class="field"><div class="lb">Subtasks · each scheduled & rewarded</div>
+            <div class="stask"><span class="nm">Finish JLPT N4 grammar<div class="dt">Today · INT +1</div></span><span class="x">×</span></div>
+            <div class="stask"><span class="nm">Draft SOP outline<div class="dt">Mon 3 Nov · INT +1</div></span><span class="x">×</span></div>
+            <div class="addsub"><span class="p">+</span>Add subtask</div>
+          </div>
+          <div class="field"><div class="lb">Finish reward — one-time</div>
+            <div class="srow"><svg class="sico" viewBox="0 0 24 24"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg><div class="nm"><div class="n">Intelligence</div></div><div class="stepper"><span class="b">−</span><span class="v pos">+5</span><span class="b">+</span></div></div>
+          </div>
+          <div class="xp"><div><div class="k">Finish XP</div><div class="note">granted once, on Finish Hobby</div></div><div class="val">+750 XP</div></div>
+        </div>
+        <div class="savebar"><div class="savebtn">Save Hobby</div></div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Reached from Quests + (type Hobby). Per-subtask schedule + effects; finish reward defaults INT +5.</li></ul></div>
+    </div>
+
+  </div>
+  <div class="footer"><b>Four editors in Inked Fantasy.</b> Back warns on unsaved changes; type-switch warns; changing recurrence resets the streak; deletion confirms.</div>
+</div>
+</body>
+</html>

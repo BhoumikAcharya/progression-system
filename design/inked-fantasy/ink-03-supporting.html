@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progression System — Supporting Screens (Inked Fantasy)</title>
+<style>
+  :root{--page:#100e09;--bg:#13110c;--surface:#1a160f;--line:rgba(201,169,106,.22);
+    --line-soft:rgba(201,169,106,.12);--ac:#c9a96a;--txt:#efe7d4;--mut:#8f8468;
+    --faint:#6b6350;--pos:#a9c187;--neg:#cd9a82;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;}
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:var(--page);color:var(--txt);padding:40px 24px 80px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1360px;margin:0 auto;}
+  .masthead h1{font-size:22px;font-weight:650;letter-spacing:-.02em;margin:0;font-family:var(--serif);}
+  .masthead p{color:var(--mut);font-size:14px;line-height:1.55;margin:10px 0 0;max-width:800px;}
+  .masthead p b{color:var(--txt);font-weight:600;}
+  .row{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start;margin-top:30px;}
+  .col{flex:1 1 384px;max-width:420px;min-width:330px;}
+  .tag{font-size:12px;font-weight:700;letter-spacing:.1em;margin:0 2px 15px;text-transform:uppercase;color:var(--ac);}
+  .tag span{color:var(--mut);font-weight:500;letter-spacing:0;text-transform:none;margin-left:8px;font-size:12.5px;}
+
+  .phone{width:384px;max-width:100%;margin:0 auto;background:#000;border:10px solid #211c12;border-radius:46px;
+    overflow:hidden;box-shadow:0 30px 70px -30px rgba(0,0,0,.9),0 0 0 1px #2c2518 inset;position:relative;}
+  .screen{height:812px;background:var(--bg);display:flex;flex-direction:column;position:relative;}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 26px 2px;font-size:12.5px;font-weight:600;flex:0 0 auto;}
+  .content{flex:1 1 auto;overflow-y:auto;padding:14px 24px 10px;}
+  .content::-webkit-scrollbar{display:none;}
+  nav.tab{flex:0 0 auto;display:flex;justify-content:space-between;padding:10px 14px 20px;border-top:1px solid var(--line);background:var(--bg);}
+  nav.tab a{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);font-size:9.5px;text-decoration:none;flex:1;}
+  nav.tab a svg{width:21px;height:21px;}
+  nav.tab a.on{color:var(--ac);}
+  .ico{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .serif{font-family:var(--serif);}.pos{color:var(--pos);}.neg{color:var(--neg);}
+  .ehead{display:flex;align-items:center;gap:14px;padding:6px 0 10px;}
+  .ehead .bk{font-size:24px;color:var(--ac);line-height:1;}
+  .ehead .ti{font-size:21px;font-weight:500;font-family:var(--serif);flex:1;}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:11px;flex:0 0 auto;}
+  .seg div{padding:6px 11px;color:var(--mut);}
+  .seg div.on{background:var(--ac);color:#13110c;font-weight:600;}
+  .seclbl{font-size:10px;letter-spacing:.2em;color:var(--mut);font-weight:600;margin:0 0 14px;text-transform:uppercase;}
+  .hr{height:1px;background:var(--line-soft);margin:20px 0;}
+  .field{padding:17px 0;border-top:1px solid var(--line-soft);}
+  .field .lb{font-size:10px;letter-spacing:.16em;color:var(--mut);text-transform:uppercase;margin-bottom:9px;}
+  .datesel{display:flex;align-items:center;justify-content:space-between;}
+  .datesel .d{font-size:16px;font-family:var(--serif);}
+  .datesel .a{color:var(--ac);font-size:18px;}
+  .sopts{display:flex;gap:8px;}
+  .sopts .o{flex:1;text-align:center;border:1px solid var(--line);border-radius:11px;padding:14px 4px;font-size:12.5px;color:var(--mut);}
+  .sopts .o.on{border-color:var(--ac);color:var(--txt);background:#201a11;}
+  .sopts .o .sub{font-size:9.5px;color:var(--faint);margin-top:5px;}
+  .prev{display:flex;justify-content:space-between;padding:10px 0;font-size:13px;}
+  .prev+ .prev{border-top:1px solid var(--line-soft);}
+  .prev .k{color:var(--mut);}
+  .savebar{flex:0 0 auto;padding:12px 20px;background:var(--bg);border-top:1px solid var(--line);}
+  .savebtn{width:100%;background:var(--ac);color:#13110c;text-align:center;padding:14px;border-radius:11px;font-size:15px;font-weight:600;}
+  .hist{display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:13px;}
+  .hist+ .hist{border-top:1px solid var(--line-soft);}
+  .hist .n{color:var(--mut);}
+  .hist .e{font-size:11.5px;}
+
+  .mr{height:812px;display:flex;flex-direction:column;background:
+      radial-gradient(130% 45% at 50% 0%, rgba(201,169,106,.07), transparent 55%), var(--bg);}
+  .mr .body{flex:1;overflow-y:auto;padding:52px 30px 20px;}
+  .mr .body::-webkit-scrollbar{display:none;}
+  .mr .kick{font-size:10px;letter-spacing:.34em;color:var(--ac);font-weight:600;text-align:center;}
+  .mr .dt{font-size:13px;color:var(--faint);text-align:center;margin-top:10px;}
+  .mr .orn{display:flex;align-items:center;gap:12px;color:var(--ac);margin:26px 0;}
+  .mr .orn::before,.mr .orn::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,rgba(201,169,106,.5),transparent);}
+  .mr .hero{text-align:center;margin:8px 0 10px;}
+  .mr .hero .n{font-size:54px;font-weight:500;font-family:var(--serif);color:var(--ac);}
+  .mr .hero .l{font-size:10px;letter-spacing:.2em;color:var(--mut);margin-top:6px;}
+  .mr .line{display:flex;justify-content:space-between;padding:13px 0;font-size:13.5px;border-top:1px solid var(--line-soft);}
+  .mr .line .k{color:var(--mut);}
+  .mr .statline{display:flex;justify-content:space-between;margin:18px 0 4px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .mr .statline .s{text-align:center;}
+  .mr .statline .s .ab{font-size:9px;letter-spacing:.1em;color:var(--faint);margin-bottom:7px;}
+  .mr .statline .s .dv{font-size:16px;font-family:var(--serif);}
+  .mr .milestone{font-size:12.5px;color:var(--mut);text-align:center;margin-top:22px;line-height:1.7;}
+  .mr .milestone b{color:var(--txt);font-weight:500;}
+  .mr .cont{padding:16px 30px 34px;}
+  .mr .contbtn{width:100%;background:var(--ac);color:#13110c;text-align:center;padding:15px;border-radius:11px;font-size:15px;font-weight:600;}
+
+  .three{display:flex;gap:10px;margin-bottom:6px;}
+  .three .m{flex:1;border:1px solid var(--line);border-radius:11px;padding:13px 0;text-align:center;}
+  .three .m .v{font-size:19px;font-weight:500;font-family:var(--serif);}
+  .three .m .l{font-size:9px;letter-spacing:.1em;color:var(--mut);text-transform:uppercase;margin-top:4px;}
+  .xpd{text-align:center;font-size:13px;color:var(--mut);margin:14px 0;}
+  .xpd b{color:var(--ac);font-weight:500;font-family:var(--serif);}
+  .brk{display:flex;justify-content:space-between;}
+  .brk .s{text-align:center;flex:1;}
+  .brk .s .ab{font-size:9px;letter-spacing:.08em;color:var(--faint);margin-bottom:6px;}
+  .brk .s .dv{font-size:15px;font-family:var(--serif);}
+  .qe{padding:12px 0;border-top:1px solid var(--line-soft);}
+  .qe .nm{font-size:13.5px;display:flex;justify-content:space-between;}
+  .qe .ef{font-size:11px;color:var(--mut);margin-top:3px;}
+  .qe .rec{font-size:10px;letter-spacing:.06em;color:var(--neg);border:1px solid rgba(205,154,130,.45);border-radius:4px;padding:1px 6px;}
+  .actbar{display:flex;gap:10px;margin-top:20px;}
+  .actbar .b{flex:1;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;font-size:12.5px;color:var(--txt);}
+
+  .arow{display:flex;align-items:center;gap:4px;padding:15px 0;border-top:1px solid var(--line-soft);}
+  .arow:first-of-type{border-top:none;}
+  .arow .tt{font-size:14.5px;font-family:var(--serif);}
+  .arow .ds{font-size:11px;color:var(--mut);margin-top:3px;}
+  .arow .act{margin-left:auto;font-size:12px;color:var(--ac);border:1px solid var(--line);border-radius:8px;padding:6px 12px;}
+  .arow .view{margin-left:auto;font-size:11px;color:var(--faint);}
+  .arow .chev{margin-left:auto;color:var(--ac);font-size:18px;}
+  .grp{margin-bottom:26px;}
+
+  .notes{margin:22px 4px 0;}
+  .notes h3{font-size:12px;font-weight:700;margin:0 0 9px;}
+  .notes ul{margin:0;padding-left:16px;}
+  .notes li{font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:7px;}
+  .notes li b{color:var(--txt);font-weight:600;}
+  .footer{max-width:900px;margin:58px auto 0;padding-top:26px;border-top:1px solid var(--line);color:var(--mut);font-size:13px;line-height:1.65;text-align:center;}
+  .footer b{color:var(--txt);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1>Supporting screens — Inked Fantasy</h1>
+    <p>Everything reachable from the main six. The <b>Morning System Report</b> keeps its no-nav, results-only treatment — now a serif XP numeral framed by a rune divider; the rest keep nav and the warm dividers.</p>
+  </div>
+
+  <div class="row">
+
+    <!-- SLEEP LOG -->
+    <div class="col">
+      <div class="tag">Sleep Log<span>Hub → Sleep Log</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Sleep Log</span></div>
+          <div class="field" style="border-top:none"><div class="lb">Sleep night</div><div class="datesel"><span class="a">‹</span><span class="d">Wed 4 → Thu 5 Nov</span><span class="a">›</span></div></div>
+          <div class="field"><div class="lb">Bedtime</div>
+            <div class="sopts"><div class="o on">9–11 PM<div class="sub">→ Excellent</div></div><div class="o">11 PM–1 AM<div class="sub">→ Medium</div></div><div class="o">After 1 AM<div class="sub">→ Low</div></div></div>
+          </div>
+          <div class="field"><div class="lb">Effect preview</div>
+            <div class="prev"><span class="k">Energy (next day)</span><span>Excellent</span></div>
+            <div class="prev"><span class="k">Stat effects</span><span><span class="pos">VIT +1</span> · <span class="pos">DIS +1</span></span></div>
+            <div class="prev"><span class="k">XP</span><span>+300 XP</span></div>
+          </div>
+          <div class="field"><div class="lb">Recent nights · tap to correct</div>
+            <div class="hist"><span class="n">Tue 3 Nov</span><span class="e">11–1 AM · Medium</span></div>
+            <div class="hist"><span class="n">Mon 2 Nov</span><span class="e">9–11 PM · Excellent</span></div>
+            <div class="hist"><span class="n">Sun 1 Nov</span><span class="e" style="color:var(--faint)">After 1 · Low</span></div>
+          </div>
+        </div>
+        <div class="savebar"><div class="savebtn">Save Sleep</div></div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Single-column like Add Quest; three fixed categories; same record shared with Quests & Calendar.</li></ul></div>
+    </div>
+
+    <!-- MORNING REPORT -->
+    <div class="col">
+      <div class="tag">Morning System Report<span>auto · once per day · no nav</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="mr">
+          <div class="body">
+            <div class="kick">SYSTEM REPORT</div>
+            <div class="dt">Previous quest day · Wed 4 Nov</div>
+            <div class="orn"><span>◆</span></div>
+            <div class="hero"><div class="n">+900</div><div class="l">XP EARNED</div></div>
+            <div class="orn"><span>❖</span></div>
+            <div class="line"><span class="k">Points gained</span><span class="pos">+6</span></div>
+            <div class="line"><span class="k">Points lost</span><span class="neg">−1</span></div>
+            <div class="line"><span class="k">Net result</span><span>+5</span></div>
+            <div class="line"><span class="k">Quests recorded</span><span>6</span></div>
+            <div class="line"><span class="k">Energy</span><span>Excellent</span></div>
+            <div class="statline">
+              <div class="s"><div class="ab">STR</div><div class="dv pos">+2</div></div>
+              <div class="s"><div class="ab">INT</div><div class="dv pos">+1</div></div>
+              <div class="s"><div class="ab">VIT</div><div class="dv pos">+1</div></div>
+              <div class="s"><div class="ab">DIS</div><div class="dv pos">+2</div></div>
+              <div class="s"><div class="ab">BNK</div><div class="dv neg">−1</div></div>
+            </div>
+            <div class="milestone"><b>Nighttime Routine</b> reached a 12-day streak.</div>
+          </div>
+          <div class="cont"><div class="contbtn">Continue to Player Status</div></div>
+        </div>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>No nav, no scenery. Serif XP hero between rune dividers — special through composition, not graphics.</li></ul></div>
+    </div>
+
+    <!-- DAY DETAILS -->
+    <div class="col">
+      <div class="tag">Calendar · Day Details<span>stats mode</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Day Details</span><span class="seg"><div class="on">Stats</div><div>Sleep</div></span></div>
+          <div class="datesel" style="margin-bottom:18px"><span class="a">‹</span><span class="d">Tuesday, 4 Nov</span><span class="a">›</span></div>
+          <div class="three">
+            <div class="m"><div class="v pos">+6</div><div class="l">gained</div></div>
+            <div class="m"><div class="v neg">−1</div><div class="l">lost</div></div>
+            <div class="m"><div class="v">+5</div><div class="l">net</div></div>
+          </div>
+          <div class="xpd"><b>+900 XP</b> earned</div>
+          <div class="hr"></div>
+          <div class="brk">
+            <div class="s"><div class="ab">STR</div><div class="dv pos">+2</div></div>
+            <div class="s"><div class="ab">INT</div><div class="dv pos">+1</div></div>
+            <div class="s"><div class="ab">VIT</div><div class="dv pos">+1</div></div>
+            <div class="s"><div class="ab">DIS</div><div class="dv pos">+2</div></div>
+            <div class="s"><div class="ab">BNK</div><div class="dv neg">−1</div></div>
+          </div>
+          <div class="hr"></div>
+          <div class="seclbl">Recorded quests</div>
+          <div class="qe"><div class="nm">Gym Workout<span class="pos">STR +2</span></div></div>
+          <div class="qe"><div class="nm">Read for 20 Minutes<span class="pos">INT +1</span></div></div>
+          <div class="qe"><div class="nm">Nighttime Routine<span class="pos">VIT +1 · DIS +2</span></div><div class="ef">streak bonus applied</div></div>
+          <div class="qe"><div class="nm">Daily Expenses <span class="rec">RECORDED: NO</span></div><div class="ef"><span class="neg">BNK −1</span> · a recorded outcome, not a missed day</div></div>
+          <div class="actbar"><div class="b">Correct Entries</div><div class="b">System Report</div></div>
+        </div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Volatile negatives read as RECORDED. Correct Entries expands inline; correcting can't restore a broken streak.</li></ul></div>
+    </div>
+
+    <!-- QUEST ARCHIVE -->
+    <div class="col">
+      <div class="tag">Quest Archive<span>Hub → Quest Archive</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Quest Archive</span></div>
+          <div class="grp"><div class="seclbl">Archived · can restore</div>
+            <div class="arow"><div><div class="tt">Cardio — Evening</div><div class="ds">Standard · Mon/Wed/Fri</div></div><span class="act">Restore</span></div>
+            <div class="arow"><div><div class="tt">Alcohol-free day?</div><div class="ds">Volatile · Every day</div></div><span class="act">Restore</span></div>
+          </div>
+          <div class="grp"><div class="seclbl">Completed one-time · view only</div>
+            <div class="arow"><div><div class="tt">Meet October savings target</div><div class="ds">Completed 31 Oct · BNK +3</div></div><span class="view">kept as history</span></div>
+            <div class="arow"><div><div class="tt">Renew gym membership</div><div class="ds">Completed 12 Oct · DIS +1</div></div><span class="view">kept as history</span></div>
+          </div>
+        </div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Archived (Restore) vs completed one-time (view-only). Names in serif, no bulk-clear.</li></ul></div>
+    </div>
+
+    <!-- HOBBY ARCHIVE -->
+    <div class="col">
+      <div class="tag">Hobby Archive<span>Hub → Hobby Archive</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Hobby Archive</span></div>
+          <div class="grp"><div class="seclbl">Paused · can restore</div>
+            <div class="arow"><div><div class="tt">Improve at Chess</div><div class="ds">Paused 18 Oct · 9 subtasks done</div></div><span class="act">Restore</span></div>
+          </div>
+          <div class="grp"><div class="seclbl">Finished · permanent</div>
+            <div class="arow"><div><div class="tt">Learn Guitar — basics</div><div class="ds">Finished 2 Nov · finish reward INT +5</div></div><span class="view">kept as history</span></div>
+            <div class="arow"><div><div class="tt">Read 12 books in 2026</div><div class="ds">Finished 28 Sep · INT +5</div></div><span class="view">kept as history</span></div>
+          </div>
+        </div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Paused (restore) vs Finished (permanent). Plain serif rows; history preserved.</li></ul></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="col">
+      <div class="tag">Settings<span>Hub → Settings</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ehead"><span class="bk">‹</span><span class="ti">Settings</span></div>
+          <div class="grp"><div class="seclbl">Player profile</div>
+            <div class="arow"><div><div class="tt">Player name</div><div class="ds">Bhoumik</div></div><span class="chev">›</span></div>
+          </div>
+          <div class="grp"><div class="seclbl">Appearance</div>
+            <div class="arow"><div><div class="tt">Theme</div><div class="ds">Dark · Inked (fixed)</div></div><span class="view">locked</span></div>
+          </div>
+          <div class="grp"><div class="seclbl">System rules &amp; guide</div>
+            <div class="arow"><div><div class="tt">How progression works</div><div class="ds">Stats · XP · levels · 3 AM reset · streaks · sleep</div></div><span class="chev">›</span></div>
+          </div>
+          <div class="grp"><div class="seclbl">Data &amp; backup</div>
+            <div class="arow"><div><div class="tt">Device sync</div><div class="ds">Last synced 7:40 AM</div></div><span class="chev">›</span></div>
+            <div class="arow"><div><div class="tt">Export / backup</div><div class="ds">Download a copy of your records</div></div><span class="chev">›</span></div>
+          </div>
+        </div>
+        <nav class="tab"><a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a><a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a><a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a><a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a><a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a></nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul><li>Divider menu; serif row titles. System rules read-only; only the requested utilities.</li></ul></div>
+    </div>
+
+  </div>
+  <div class="footer"><b>Supporting screens in Inked Fantasy.</b></div>
+</div>
+</body>
+</html>

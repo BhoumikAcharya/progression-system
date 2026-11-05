@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progression System — Player Status Explorations</title>
+<style>
+  :root{
+    --page:#141416; --bg:#000; --surface:#0e0e10; --surface2:#17171a;
+    --line:#242428; --line-soft:#1a1a1d;
+    --text:#f3f3f4; --muted:#85858b; --faint:#56565b;
+    --pos:#76c698; --neg:#d98f8f;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{
+    margin:0;background:var(--page);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);padding:40px 24px 80px;
+  }
+  .wrap{max-width:1340px;margin:0 auto;}
+  .masthead{margin:0 0 8px;}
+  .masthead h1{font-size:22px;font-weight:650;letter-spacing:-.02em;margin:0;}
+  .masthead p{color:var(--muted);font-size:14px;line-height:1.55;margin:10px 0 0;max-width:760px;}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 34px;}
+  .meta span{font-size:11.5px;color:var(--muted);border:1px solid var(--line);
+    padding:5px 11px;border-radius:999px;letter-spacing:.02em;}
+  .meta b{color:var(--text);font-weight:600;}
+
+  .row{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .col{flex:1 1 384px;max-width:420px;min-width:330px;}
+  .tag{display:flex;align-items:baseline;gap:10px;margin:0 2px 16px;}
+  .tag .k{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--text);}
+  .tag .d{font-size:12.5px;color:var(--muted);}
+
+  /* ---- phone shell ---- */
+  .phone{width:384px;max-width:100%;margin:0 auto;background:#000;
+    border:10px solid #1b1b1e;border-radius:46px;overflow:hidden;
+    box-shadow:0 30px 70px -30px rgba(0,0,0,.9),0 0 0 1px #2a2a2e inset;position:relative;}
+  .screen{height:812px;background:var(--bg);display:flex;flex-direction:column;position:relative;}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;
+    padding:14px 26px 2px;font-size:12.5px;color:var(--text);font-weight:600;flex:0 0 auto;}
+  .statusbar .dots{display:flex;gap:5px;align-items:center;opacity:.85;}
+  .statusbar .bat{width:22px;height:11px;border:1px solid var(--text);border-radius:3px;position:relative;opacity:.85;}
+  .statusbar .bat::after{content:"";position:absolute;right:-3px;top:3px;width:2px;height:5px;background:var(--text);border-radius:0 1px 1px 0;}
+  .statusbar .bat::before{content:"";position:absolute;left:1px;top:1px;bottom:1px;width:70%;background:var(--text);border-radius:1px;}
+  .content{flex:1 1 auto;overflow:hidden;padding:12px 22px 10px;}
+
+  /* bottom nav shared */
+  nav.tab{flex:0 0 auto;display:flex;justify-content:space-between;
+    padding:10px 16px 20px;border-top:1px solid var(--line);background:#000;}
+  nav.tab a{display:flex;flex-direction:column;align-items:center;gap:4px;
+    color:var(--faint);font-size:9.5px;letter-spacing:.02em;text-decoration:none;flex:1;}
+  nav.tab a svg{width:21px;height:21px;}
+  nav.tab a.on{color:var(--text);}
+  .ico{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+  .hr{height:1px;background:var(--line-soft);margin:16px 0;}
+  .seclbl{font-size:10.5px;letter-spacing:.16em;color:var(--muted);font-weight:600;margin:0 0 12px;}
+  .pos{color:var(--pos);} .neg{color:var(--neg);}
+
+  /* stat icon helper */
+  .sico{stroke:#fff;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* ============ DIRECTION A — MINIMAL ============ */
+  .a .content{padding:16px 24px 8px;}
+  .a-top{font-size:10.5px;letter-spacing:.3em;color:var(--faint);font-weight:600;margin-bottom:20px;}
+  .a-head{display:flex;justify-content:space-between;align-items:flex-start;}
+  .a-name{font-size:27px;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;}
+  .a-name svg{width:14px;height:14px;stroke:var(--faint);fill:none;stroke-width:1.6;}
+  .a-lv{font-size:13px;color:var(--muted);margin-top:5px;}
+  .a-energy{text-align:right;}
+  .a-energy .l{font-size:9.5px;letter-spacing:.18em;color:var(--faint);display:block;margin-bottom:4px;}
+  .a-energy .v{font-size:14px;color:var(--text);font-weight:500;}
+  .a-xprow{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:9px;}
+  .a-xprow .muted{color:var(--muted);}
+  .a-xpbar{height:2px;background:#202024;border-radius:2px;overflow:hidden;}
+  .a-xpbar i{display:block;height:100%;width:58%;background:#fff;}
+  .a-stats{display:flex;}
+  .a-stats .c{flex:1;text-align:center;padding:4px 0;position:relative;}
+  .a-stats .c+ .c::before{content:"";position:absolute;left:0;top:14%;height:72%;width:1px;background:var(--line-soft);}
+  .a-stats .c svg{width:19px;height:19px;margin-bottom:9px;}
+  .a-stats .c .ab{font-size:9.5px;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;}
+  .a-stats .c .vl{font-size:18px;font-weight:600;}
+  .a-today{display:flex;flex-wrap:wrap;gap:6px 0;}
+  .a-today .m{flex:1 1 50%;font-size:13px;color:var(--muted);margin-bottom:12px;}
+  .a-today .m b{color:var(--text);font-weight:600;font-size:15px;margin-right:5px;}
+  .a-streaks{font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .a-streaks b{color:var(--text);font-weight:600;}
+
+  /* ============ DIRECTION B — REFINED RPG ============ */
+  .b .content{padding:14px 18px 8px;font-feature-settings:"tnum";}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  .b-win{border:1px solid var(--line);border-radius:4px;padding:11px 13px;margin-bottom:12px;position:relative;}
+  .b-win::before,.b-win::after{content:"";position:absolute;width:7px;height:7px;border:1px solid var(--muted);}
+  .b-win::before{top:-1px;left:-1px;border-right:none;border-bottom:none;}
+  .b-win::after{bottom:-1px;right:-1px;border-left:none;border-top:none;}
+  .b-winlbl{font-size:9.5px;letter-spacing:.22em;color:var(--muted);margin-bottom:9px;}
+  .b-head{display:flex;justify-content:space-between;align-items:center;}
+  .b-player{font-size:11px;letter-spacing:.1em;color:var(--muted);}
+  .b-player b{display:block;font-size:19px;letter-spacing:.04em;color:var(--text);margin-top:3px;}
+  .b-lv{text-align:right;}
+  .b-lv .n{font-size:30px;font-weight:700;line-height:1;letter-spacing:.02em;}
+  .b-lv .t{font-size:9.5px;letter-spacing:.2em;color:var(--muted);}
+  .b-energy{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);
+    border-radius:3px;padding:5px 10px;font-size:11px;letter-spacing:.12em;color:var(--text);margin-top:12px;}
+  .b-energy i{width:6px;height:6px;background:#fff;border-radius:50%;}
+  .b-xpline{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
+  .b-xpline b{color:var(--text);}
+  .b-seg{display:flex;gap:3px;}
+  .b-seg i{height:7px;flex:1;background:#202024;}
+  .b-seg i.f{background:#fff;}
+  .b-stats{display:flex;gap:7px;}
+  .b-stats .c{flex:1;border:1px solid var(--line);border-radius:3px;padding:10px 0 9px;text-align:center;}
+  .b-stats .c svg{width:18px;height:18px;margin-bottom:8px;}
+  .b-stats .c .ab{font-size:9px;letter-spacing:.1em;color:var(--muted);margin-bottom:4px;}
+  .b-stats .c .vl{font-size:17px;font-weight:700;}
+  .b-log .r{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.04em;padding:6px 0;color:var(--muted);}
+  .b-log .r b{color:var(--text);font-weight:600;}
+  .b-log .r+ .r{border-top:1px solid var(--line-soft);}
+  .b-sys{font-size:10.5px;letter-spacing:.06em;color:var(--muted);margin-top:4px;line-height:1.6;}
+  .b-sys .lbl{color:var(--text);letter-spacing:.18em;}
+
+  /* ============ DIRECTION C — PREMIUM EDITORIAL ============ */
+  .c .content{padding:22px 24px 8px;}
+  .c-over{font-size:9.5px;letter-spacing:.34em;color:var(--faint);font-weight:600;margin-bottom:26px;}
+  .c-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+  .c-name{font-size:32px;font-weight:300;letter-spacing:-.02em;line-height:1.05;}
+  .c-name small{display:block;font-size:11px;letter-spacing:.1em;color:var(--muted);font-weight:500;margin-top:10px;text-transform:uppercase;}
+  .c-lv{text-align:right;}
+  .c-lv .n{font-size:46px;font-weight:200;line-height:.9;letter-spacing:-.03em;}
+  .c-lv .t{font-size:9.5px;letter-spacing:.24em;color:var(--muted);margin-top:4px;}
+  .c-energy{display:flex;align-items:center;justify-content:flex-end;gap:7px;font-size:12px;color:var(--text);margin-top:14px;}
+  .c-energy i{width:5px;height:5px;border-radius:50%;background:var(--pos);}
+  .c-energy span{color:var(--muted);letter-spacing:.04em;}
+  .c-xp{margin:30px 0 4px;}
+  .c-xp .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px;}
+  .c-xp .pct{font-size:13px;font-weight:600;}
+  .c-xp .rem{font-size:11.5px;color:var(--muted);}
+  .c-xpbar{height:3px;background:#1c1c1f;border-radius:3px;overflow:hidden;}
+  .c-xpbar i{display:block;height:100%;width:58%;background:linear-gradient(90deg,#8a8a8f,#fff);}
+  .c-rule{height:1px;background:var(--line-soft);margin:28px 0;}
+  .c-stats{display:flex;}
+  .c-stats .c{flex:1;text-align:center;}
+  .c-stats .c svg{width:22px;height:22px;margin-bottom:12px;opacity:.92;}
+  .c-stats .c .ab{font-size:9px;letter-spacing:.14em;color:var(--faint);margin-bottom:7px;}
+  .c-stats .c .vl{font-size:21px;font-weight:300;}
+  .c-today .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;}
+  .c-today .hd .t{font-size:10.5px;letter-spacing:.2em;color:var(--muted);font-weight:600;}
+  .c-today .hd .q{font-size:11.5px;color:var(--muted);}
+  .c-today .hd .q b{color:var(--text);font-weight:600;}
+  .c-grid{display:flex;gap:26px;align-items:flex-end;}
+  .c-grid .mcol{flex:0 0 auto;}
+  .c-grid .m{margin-bottom:14px;}
+  .c-grid .m .v{font-size:19px;font-weight:300;}
+  .c-grid .m .l{font-size:10px;letter-spacing:.1em;color:var(--muted);margin-top:2px;text-transform:uppercase;}
+  .c-spark{flex:1;height:58px;position:relative;}
+  .c-spark svg{width:100%;height:100%;overflow:visible;}
+  .c-spark .cap{font-size:9.5px;letter-spacing:.08em;color:var(--faint);margin-top:6px;text-align:right;}
+  .c-streak{font-size:12px;color:var(--muted);line-height:1.75;margin-top:4px;}
+  .c-streak b{color:var(--text);font-weight:500;}
+
+  /* notes */
+  .notes{margin:22px 4px 0;}
+  .notes h3{font-size:12.5px;font-weight:700;letter-spacing:.02em;margin:0 0 10px;color:var(--text);}
+  .notes ul{margin:0;padding-left:16px;}
+  .notes li{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:8px;}
+  .notes li b{color:var(--text);font-weight:600;}
+  .flag{display:inline-block;font-size:9.5px;letter-spacing:.06em;color:#000;background:var(--muted);
+    border-radius:3px;padding:1px 6px;font-weight:700;vertical-align:middle;margin-right:5px;}
+  .footer{max-width:900px;margin:60px auto 0;padding-top:26px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:13px;line-height:1.65;text-align:center;}
+  .footer b{color:var(--text);font-weight:600;}
+  @media(max-width:1180px){.row{gap:48px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <h1>Player Status — three design directions</h1>
+    <p>One anchor screen, rendered three ways. All three carry the <b>same data, the same sections, and the same information architecture</b> defined in the brief (title · name · level · energy · XP · five-stat row · Today at a Glance). Only the visual language changes. Where a direction adds anything beyond the brief, it's marked <span class="flag">PROPOSAL</span> below its frame.</p>
+  </div>
+  <div class="meta">
+    <span><b>Sample state:</b> Level 7 · 540/927 XP · Energy Excellent</span>
+    <span><b>Accent:</b> green/red on live +/− only</span>
+    <span><b>Streaks:</b> per-quest roll-up, no global streak</span>
+    <span><b>No</b> avatar · <b>no</b> rank · <b>no</b> activity feed</span>
+  </div>
+
+  <div class="row">
+
+    <!-- ============== A ============== -->
+    <div class="col">
+      <div class="tag"><span class="k">A</span><span class="d">Minimal Productivity System</span></div>
+      <div class="phone a">
+        <div class="screen">
+          <div class="statusbar"><span>7:42</span><span class="dots"><span>5G</span><span class="bat"></span></span></div>
+          <div class="content">
+            <div class="a-top">SYSTEM</div>
+            <div class="a-head">
+              <div>
+                <div class="a-name">Bhoumik
+                  <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                </div>
+                <div class="a-lv">Level 7</div>
+              </div>
+              <div class="a-energy"><span class="l">ENERGY</span><span class="v">Excellent</span></div>
+            </div>
+            <div class="hr"></div>
+            <div class="a-xprow"><span>540 / 927 XP</span><span class="muted">387 to Level 8</span></div>
+            <div class="a-xpbar"><i></i></div>
+            <div class="hr"></div>
+            <div class="a-stats">
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 12h2"/><path d="M19 12h2"/><rect x="5.5" y="8.5" width="2.6" height="7" rx="1"/><rect x="15.9" y="8.5" width="2.6" height="7" rx="1"/><path d="M8.1 12h7.8"/></svg><div class="ab">STR</div><div class="vl">42</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg><div class="ab">INT</div><div class="vl">38</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="ab">VIT</div><div class="vl">27</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="ab">DIS</div><div class="vl">51</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h12v3"/><path d="M3 7v10a2 2 0 0 0 2 2h14V9H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="13.5" r="1.1" fill="#fff" stroke="none"/></svg><div class="ab">BNK</div><div class="vl">15</div></div>
+            </div>
+            <div class="hr"></div>
+            <div class="seclbl">TODAY AT A GLANCE</div>
+            <div class="a-today">
+              <div class="m"><b>+1050</b>XP today</div>
+              <div class="m"><b>5 / 8</b>quests</div>
+              <div class="m"><b class="pos">+7</b>gained</div>
+              <div class="m"><b class="neg">−2</b>lost</div>
+            </div>
+            <div class="a-streaks">Active streaks — <b>Nighttime Routine 12</b> · Gym 6 · Read 4</div>
+          </div>
+          <nav class="tab">
+            <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg>Hobbies</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+          </nav>
+        </div>
+      </div>
+      <div class="notes">
+        <h3>Why this works</h3>
+        <ul>
+          <li><b>Typography does the hierarchy, not boxes.</b> Hairline dividers separate the four zones; nothing is wrapped in a card. Reads instantly, scales to a glance.</li>
+          <li><b>XP is a 2px line.</b> Progress is legible without a chunky meter competing with the stat values.</li>
+          <li><b>Stat row = five equal cells, hairline separators.</b> The approved single-row layout, de-emphasised so the day's numbers lead.</li>
+          <li><b>Streaks roll up to the top per-quest runs</b> — no invented global number, matching the brief.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============== B ============== -->
+    <div class="col">
+      <div class="tag"><span class="k">B</span><span class="d">Refined RPG Dashboard</span></div>
+      <div class="phone b">
+        <div class="screen">
+          <div class="statusbar"><span>7:42</span><span class="dots"><span>5G</span><span class="bat"></span></span></div>
+          <div class="content">
+            <div class="b-win">
+              <div class="b-winlbl mono">⟦ STATUS ⟧</div>
+              <div class="b-head">
+                <div class="b-player mono">PLAYER<b>BHOUMIK</b></div>
+                <div class="b-lv mono"><div class="n">7</div><div class="t">LEVEL</div></div>
+              </div>
+              <div class="b-energy mono"><i></i>ENERGY · EXCELLENT</div>
+            </div>
+            <div class="b-win">
+              <div class="b-xpline mono"><span>EXP</span><b>540 / 927</b></div>
+              <div class="b-seg">
+                <i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+            <div class="b-stats">
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 12h2"/><path d="M19 12h2"/><rect x="5.5" y="8.5" width="2.6" height="7" rx="1"/><rect x="15.9" y="8.5" width="2.6" height="7" rx="1"/><path d="M8.1 12h7.8"/></svg><div class="ab mono">STR</div><div class="vl mono">42</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg><div class="ab mono">INT</div><div class="vl mono">38</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="ab mono">VIT</div><div class="vl mono">27</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="ab mono">DIS</div><div class="vl mono">51</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h12v3"/><path d="M3 7v10a2 2 0 0 0 2 2h14V9H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="13.5" r="1.1" fill="#fff" stroke="none"/></svg><div class="ab mono">BNK</div><div class="vl mono">15</div></div>
+            </div>
+            <div style="height:12px"></div>
+            <div class="b-win">
+              <div class="b-winlbl mono">⟦ DAILY LOG ⟧</div>
+              <div class="b-log mono">
+                <div class="r"><span>XP EARNED</span><b>+1050</b></div>
+                <div class="r"><span>POINTS GAINED</span><b class="pos">+7</b></div>
+                <div class="r"><span>POINTS LOST</span><b class="neg">−2</b></div>
+                <div class="r"><span>QUESTS CLEARED</span><b>5 / 8</b></div>
+                <div class="r"><span>TOP STREAK</span><b>NIGHT ROUTINE ×12</b></div>
+              </div>
+            </div>
+            <div class="b-sys mono"><span class="lbl">⟦ SYSTEM ⟧</span> Consistency holding. Discipline leads your attributes.</div>
+          </div>
+          <nav class="tab">
+            <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg>Hobbies</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+          </nav>
+        </div>
+      </div>
+      <div class="notes">
+        <h3>Why this works</h3>
+        <ul>
+          <li><b>Solo Leveling "status window" nostalgia — kept monochrome.</b> The System feel comes from thin bordered panels, corner ticks, bracketed <span class="mono">⟦ LABELS ⟧</span> and a monospaced numeric face, <em>not</em> from glow or color.</li>
+          <li><b>Level is the hero numeral.</b> Big mono "7" anchors identity where an avatar would otherwise sit.</li>
+          <li><b>XP as a segmented tick bar</b> reads as a game resource while staying honest to the real 540/927 value.</li>
+          <li><span class="flag">PROPOSAL</span> The <span class="mono">⟦ SYSTEM ⟧</span> one-liner is flavour text derived from existing data (highest stat / streak). Purely cosmetic — easy to drop.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============== C ============== -->
+    <div class="col">
+      <div class="tag"><span class="k">C</span><span class="d">Premium Editorial Dashboard</span></div>
+      <div class="phone c">
+        <div class="screen">
+          <div class="statusbar"><span>7:42</span><span class="dots"><span>5G</span><span class="bat"></span></span></div>
+          <div class="content">
+            <div class="c-over">PROGRESSION SYSTEM</div>
+            <div class="c-head">
+              <div class="c-name">Bhoumik<small>Player</small></div>
+              <div class="c-lv"><div class="n">07</div><div class="t">LEVEL</div></div>
+            </div>
+            <div class="c-energy"><span>Energy</span><i></i>Excellent</div>
+            <div class="c-xp">
+              <div class="top"><span class="pct">58% to Level 8</span><span class="rem">387 XP left · 540 / 927</span></div>
+              <div class="c-xpbar"><i></i></div>
+            </div>
+            <div class="c-rule"></div>
+            <div class="c-stats">
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 12h2"/><path d="M19 12h2"/><rect x="5.5" y="8.5" width="2.6" height="7" rx="1"/><rect x="15.9" y="8.5" width="2.6" height="7" rx="1"/><path d="M8.1 12h7.8"/></svg><div class="ab">STR</div><div class="vl">42</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg><div class="ab">INT</div><div class="vl">38</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="ab">VIT</div><div class="vl">27</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="ab">DIS</div><div class="vl">51</div></div>
+              <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h12v3"/><path d="M3 7v10a2 2 0 0 0 2 2h14V9H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="13.5" r="1.1" fill="#fff" stroke="none"/></svg><div class="ab">BNK</div><div class="vl">15</div></div>
+            </div>
+            <div class="c-rule"></div>
+            <div class="c-today">
+              <div class="hd"><span class="t">TODAY</span><span class="q"><b>5 / 8</b> quests cleared</span></div>
+              <div class="c-grid">
+                <div class="mcol">
+                  <div class="m"><div class="v">+1050</div><div class="l">XP today</div></div>
+                  <div class="m"><div class="v"><span class="pos">+7</span> / <span class="neg">−2</span></div><div class="l">gained / lost</div></div>
+                </div>
+                <div class="c-spark">
+                  <svg viewBox="0 0 160 58" preserveAspectRatio="none">
+                    <polyline class="sico" style="stroke:#6a6a70;stroke-width:1.5" points="0,52 16,50 32,46 48,47 64,40 80,36 96,30 112,26 128,20 144,12 160,6"/>
+                    <circle cx="160" cy="6" r="2.4" fill="#fff" stroke="none"/>
+                  </svg>
+                  <div class="cap">XP · LAST 30 DAYS</div>
+                </div>
+              </div>
+              <div class="c-streak">Active streaks — <b>Nighttime Routine 12</b> · Gym 6 · Read 4</div>
+            </div>
+          </div>
+          <nav class="tab">
+            <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg>Hobbies</a>
+            <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+          </nav>
+        </div>
+      </div>
+      <div class="notes">
+        <h3>Why this works</h3>
+        <ul>
+          <li><b>Magazine hierarchy.</b> Big light-weight name, oversized thin level numeral, generous whitespace — feels premium and personal, leans into "review progress is motivating".</li>
+          <li><b>Stats get room to breathe</b> with larger icons and light-weight values; still the single approved row.</li>
+          <li><span class="flag">PROPOSAL</span> <b>A 30-day XP sparkline</b> in Today at a Glance. Derivable from existing records, but it's a new visualisation — the brief says Status has no activity feed, so I'm flagging it rather than assuming. Trivial to remove if you want Status kept purely present-tense.</li>
+          <li>Uses more vertical space — best suited if you value long-term analytics on the home screen.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <b>These are static visual explorations — no mechanics changed.</b> Pick a direction (or a hybrid — e.g. A's restraint with C's spacing) and I'll build the remaining five main screens (Quests, To-Dos, Calendar, Hobbies, Hub), then the supporting screens and the iPad layouts, in the chosen language. Font shown is a system stack standing in for Inter / Geist.
+  </div>
+
+</div>
+</body>
+</html>

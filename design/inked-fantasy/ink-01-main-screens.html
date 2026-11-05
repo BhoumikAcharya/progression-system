@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progression System — Main Screens (Inked Fantasy)</title>
+<style>
+  :root{
+    --page:#100e09;--bg:#13110c;--surface:#1a160f;--line:rgba(201,169,106,.22);
+    --line-soft:rgba(201,169,106,.12);--ac:#c9a96a;--txt:#efe7d4;--mut:#8f8468;
+    --faint:#6b6350;--pos:#a9c187;--neg:#cd9a82;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:var(--page);color:var(--txt);padding:40px 24px 80px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1360px;margin:0 auto;}
+  .masthead h1{font-size:22px;font-weight:650;letter-spacing:-.02em;margin:0;font-family:var(--serif);}
+  .masthead p{color:var(--mut);font-size:14px;line-height:1.55;margin:10px 0 0;max-width:800px;}
+  .masthead p b{color:var(--txt);font-weight:600;}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 36px;}
+  .meta span{font-size:11.5px;color:var(--mut);border:1px solid var(--line);padding:5px 11px;border-radius:999px;}
+  .meta b{color:var(--ac);font-weight:600;}
+  .row{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .col{flex:1 1 384px;max-width:420px;min-width:330px;}
+  .tag{font-size:12px;font-weight:700;letter-spacing:.1em;margin:0 2px 15px;text-transform:uppercase;color:var(--ac);}
+  .tag span{color:var(--mut);font-weight:500;letter-spacing:0;text-transform:none;margin-left:8px;font-size:12.5px;}
+
+  .phone{width:384px;max-width:100%;margin:0 auto;background:#000;border:10px solid #211c12;border-radius:46px;
+    overflow:hidden;box-shadow:0 30px 70px -30px rgba(0,0,0,.9),0 0 0 1px #2c2518 inset;position:relative;}
+  .screen{height:812px;background:var(--bg);display:flex;flex-direction:column;position:relative;}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:14px 26px 2px;font-size:12.5px;font-weight:600;flex:0 0 auto;}
+  .content{flex:1 1 auto;overflow-y:auto;padding:20px 24px 12px;}
+  .content::-webkit-scrollbar{display:none;}
+  nav.tab{flex:0 0 auto;display:flex;justify-content:space-between;padding:10px 14px 20px;border-top:1px solid var(--line);background:var(--bg);}
+  nav.tab a{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);font-size:9.5px;text-decoration:none;flex:1;}
+  nav.tab a svg{width:21px;height:21px;}
+  nav.tab a.on{color:var(--ac);}
+  .ico{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .sico{stroke:var(--ac);fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+  .hr{height:1px;background:var(--line-soft);margin:22px 0;}
+  .orn{display:flex;align-items:center;gap:12px;color:var(--ac);margin:22px 0;}
+  .orn::before,.orn::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,rgba(201,169,106,.5),transparent);}
+  .orn span{font-size:10px;}
+  .seclbl{font-size:10px;letter-spacing:.2em;color:var(--mut);font-weight:600;margin:0 0 14px;text-transform:uppercase;}
+  .serif{font-family:var(--serif);}
+  .pos{color:var(--pos);}.neg{color:var(--neg);}
+  .ptitle{font-size:27px;font-weight:500;letter-spacing:.01em;font-family:var(--serif);}
+  .psub{font-size:12.5px;color:var(--mut);margin-top:6px;}
+
+  .cbx{width:20px;height:20px;border:1.5px solid rgba(201,169,106,.5);border-radius:5px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+  .cbx.on{background:var(--ac);border-color:var(--ac);}
+  .cbx.on svg{width:12px;height:12px;stroke:#13110c;stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .cbx.sm{width:17px;height:17px;border-radius:4px;}
+
+  /* STATUS */
+  .st-over{font-size:9.5px;letter-spacing:.32em;color:var(--ac);text-align:center;margin-bottom:20px;}
+  .st-head{text-align:center;}
+  .st-name{font-size:30px;font-weight:500;letter-spacing:.01em;font-family:var(--serif);}
+  .st-sub{font-size:10.5px;letter-spacing:.24em;color:var(--mut);margin-top:9px;text-transform:uppercase;}
+  .st-lvl{text-align:center;margin:2px 0;}
+  .st-lvl .n{font-size:50px;font-weight:500;color:var(--ac);line-height:1;font-family:var(--serif);}
+  .st-lvl .t{font-size:9px;letter-spacing:.28em;color:var(--mut);margin-top:4px;}
+  .st-en{text-align:center;font-size:12px;color:var(--txt);letter-spacing:.05em;}
+  .st-en b{color:var(--ac);font-weight:500;}
+  .st-xprow{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin-bottom:9px;letter-spacing:.03em;}
+  .st-bar{height:2px;background:rgba(201,169,106,.16);position:relative;}
+  .st-bar i{display:block;height:100%;width:58%;background:var(--ac);}
+  .st-bar i::after{content:"";position:absolute;left:58%;top:-2px;width:6px;height:6px;background:var(--ac);transform:translateX(-50%) rotate(45deg);}
+  .st-stats{display:flex;}
+  .st-stats .c{flex:1;text-align:center;position:relative;}
+  .st-stats .c+ .c::before{content:"";position:absolute;left:0;top:14%;height:72%;width:1px;background:var(--line-soft);}
+  .st-stats .c svg{width:20px;height:20px;margin-bottom:11px;}
+  .st-stats .c .ab{font-size:8.5px;letter-spacing:.14em;color:var(--mut);margin-bottom:6px;}
+  .st-stats .c .vl{font-size:21px;font-weight:500;font-family:var(--serif);}
+  .st-today{display:flex;flex-wrap:wrap;text-align:center;}
+  .st-today .m{flex:1 1 50%;margin-bottom:18px;}
+  .st-today .m .v{font-size:19px;font-weight:500;font-family:var(--serif);}
+  .st-today .m .l{font-size:9.5px;letter-spacing:.1em;color:var(--mut);margin-top:3px;text-transform:uppercase;}
+  .st-streak{font-size:12px;color:var(--mut);line-height:1.8;text-align:center;}
+  .st-streak b{color:var(--txt);font-weight:500;}
+
+  /* quest cards */
+  .qcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:12px;}
+  .qcard.done{opacity:.4;}
+  .qtop{display:flex;gap:13px;align-items:flex-start;}
+  .qbody{flex:1;min-width:0;}
+  .qname{font-size:15px;font-weight:500;}
+  .qmeta{font-size:11.5px;color:var(--mut);margin-top:4px;}
+  .qsys{margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);font-size:11.5px;color:var(--mut);}
+  .qsys b{color:var(--txt);font-weight:600;}
+  .vol{display:flex;gap:10px;margin-top:12px;}
+  .vol .opt{flex:1;display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:13px;}
+  .subs{margin-top:12px;}
+  .sub{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:13px;}
+  .sub+ .sub{border-top:1px solid var(--line-soft);}
+  .sub .nm{flex:1;}
+  .sub.ok .nm{color:var(--mut);text-decoration:line-through;}
+  .tag-eff{font-size:10.5px;color:var(--mut);}
+  .fab{position:absolute;right:20px;bottom:92px;width:52px;height:52px;border-radius:50%;background:var(--ac);color:#13110c;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:400;box-shadow:0 10px 30px -8px rgba(201,169,106,.4);}
+  .ovd{font-size:9.5px;letter-spacing:.08em;color:var(--neg);border:1px solid rgba(205,154,130,.45);border-radius:4px;padding:1px 6px;font-weight:600;}
+
+  .sleep{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:18px;}
+  .sleep .h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;}
+  .sleep .h .t{font-size:10px;letter-spacing:.16em;color:var(--mut);font-weight:600;}
+  .sleep .h .n{font-size:11px;color:var(--faint);}
+  .sleep .opts{display:flex;gap:8px;margin:13px 0 10px;}
+  .sleep .o{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:10px 4px;font-size:12px;}
+  .sleep .o .cb{width:15px;height:15px;border:1.5px solid rgba(201,169,106,.5);border-radius:4px;margin:0 auto 7px;}
+  .sleep .pv{font-size:10.5px;color:var(--faint);}
+
+  /* todos */
+  .addfield{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:22px;color:var(--faint);font-size:14px;}
+  .addfield .plus{margin-left:auto;font-size:20px;color:var(--ac);}
+  .td{display:flex;align-items:center;gap:13px;padding:13px 0;font-size:14.5px;}
+  .td+ .td,.td-group{border-top:1px solid var(--line-soft);}
+  .td-group{padding-top:4px;}
+  .td-child{display:flex;align-items:center;gap:12px;padding:10px 0 10px 33px;font-size:13.5px;}
+  .td-child+ .td-child{border-top:1px solid var(--line-soft);}
+  .arch{display:flex;align-items:center;gap:10px;margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mut);}
+  .arch .chev{margin-left:auto;color:var(--ac);}
+
+  /* calendar */
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .cal-nav{display:flex;align-items:center;gap:14px;font-size:16px;font-family:var(--serif);}
+  .cal-nav .a{color:var(--ac);font-size:17px;}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:11px;}
+  .seg div{padding:6px 11px;color:var(--mut);}
+  .seg div.on{background:var(--ac);color:#13110c;font-weight:600;}
+  .vmodes{display:flex;gap:16px;font-size:12px;color:var(--faint);margin-bottom:18px;}
+  .vmodes b{color:var(--txt);font-weight:600;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-grid .wd{text-align:center;font-size:9.5px;color:var(--faint);letter-spacing:.06em;padding-bottom:8px;}
+  .cell{aspect-ratio:1/1.08;border-radius:8px;padding:6px 0 0;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .cell .d{font-size:11px;color:var(--mut);}
+  .cell .nt{font-size:12px;font-weight:600;font-family:var(--serif);}
+  .cell.today{border:1px solid var(--ac);}
+  .cell.today .d{color:var(--ac);}
+  .cell.sel{background:#201a11;}
+  .cell.future .d{color:#3a3426;}
+  .none{color:var(--faint);}
+  .legend{display:flex;gap:14px;margin:16px 2px 0;font-size:10.5px;color:var(--mut);flex-wrap:wrap;}
+  .legend s{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle;}
+  .daysum{margin-top:20px;padding-top:18px;border-top:1px solid var(--line);}
+  .daysum .dh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;}
+  .daysum .dh .dt{font-size:15px;font-weight:500;font-family:var(--serif);}
+  .daysum .dh .vd{font-size:11.5px;color:var(--ac);}
+  .daysum .three{display:flex;gap:22px;margin-bottom:14px;}
+  .daysum .three .m .v{font-size:18px;font-weight:500;font-family:var(--serif);}
+  .daysum .three .m .l{font-size:9.5px;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;margin-top:2px;}
+  .daysum .acts{font-size:12px;color:var(--mut);line-height:1.7;}
+  .daysum .acts b{color:var(--txt);font-weight:500;}
+
+  /* hobbies */
+  .hob{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:13px;}
+  .hob .hh{display:flex;justify-content:space-between;align-items:flex-start;}
+  .hob .hn{font-size:15.5px;font-weight:500;font-family:var(--serif);}
+  .hob .hs{font-size:11px;color:var(--mut);margin-top:4px;}
+  .hob .dots{color:var(--ac);font-size:18px;}
+  .hob .task{display:flex;align-items:center;gap:12px;padding:11px 0;font-size:13.5px;}
+  .hob .task+ .task{border-top:1px solid var(--line-soft);}
+  .hob .task:first-of-type{margin-top:8px;border-top:1px solid var(--line-soft);}
+  .hob .task .nm{flex:1;}
+  .hob .next{font-size:11px;color:var(--faint);margin-top:11px;}
+  .hob .empty{font-size:12.5px;color:var(--faint);margin-top:12px;font-style:italic;}
+
+  /* hub */
+  .hub-g{margin-bottom:26px;}
+  .hub-row{display:flex;align-items:center;gap:4px;padding:16px 0;border-top:1px solid var(--line-soft);}
+  .hub-row:first-of-type{border-top:none;}
+  .hub-row .tt{font-size:15px;font-weight:500;font-family:var(--serif);}
+  .hub-row .ds{font-size:11.5px;color:var(--mut);margin-top:3px;}
+  .hub-row .chev{margin-left:auto;color:var(--ac);font-size:18px;}
+
+  .notes{margin:22px 4px 0;}
+  .notes h3{font-size:12px;font-weight:700;margin:0 0 9px;}
+  .notes ul{margin:0;padding-left:16px;}
+  .notes li{font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:7px;}
+  .notes li b{color:var(--txt);font-weight:600;}
+  .footer{max-width:900px;margin:58px auto 0;padding-top:26px;border-top:1px solid var(--line);color:var(--mut);font-size:13px;line-height:1.65;text-align:center;}
+  .footer b{color:var(--txt);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1>Main screens — Inked Fantasy</h1>
+    <p>The six destinations as a refined character sheet: warm near-black, a single brass accent, <b>serif numerals for every meaningful figure</b>, thin rune dividers used sparingly (Status only). Same information architecture as the A+C build — only the skin changes. +/− use a muted, palette-harmonised green/red.</p>
+  </div>
+  <div class="meta">
+    <span><b>Accent</b> brass #c9a96a</span><span><b>Display</b> serif numerals</span><span><b>Today</b> Thu 5 Nov 2026</span>
+  </div>
+
+  <div class="row">
+
+    <!-- STATUS -->
+    <div class="col">
+      <div class="tag">Status<span>home · the character sheet</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="st-over">PROGRESSION SYSTEM</div>
+          <div class="st-head"><div class="st-name">Bhoumik</div><div class="st-sub">Adventurer</div></div>
+          <div class="st-lvl"><div class="n">7</div><div class="t">LEVEL</div></div>
+          <div class="st-en">Energy · <b>Excellent</b></div>
+          <div class="orn"><span>◆</span></div>
+          <div class="st-xprow"><span>540 / 927 XP</span><span>387 to Level 8</span></div>
+          <div class="st-bar"><i></i></div>
+          <div class="orn"><span>❖</span></div>
+          <div class="seclbl" style="text-align:center">Attributes</div>
+          <div class="st-stats">
+            <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 12h2"/><path d="M19 12h2"/><rect x="5.5" y="8.5" width="2.6" height="7" rx="1"/><rect x="15.9" y="8.5" width="2.6" height="7" rx="1"/><path d="M8.1 12h7.8"/></svg><div class="ab">STR</div><div class="vl">42</div></div>
+            <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg><div class="ab">INT</div><div class="vl">38</div></div>
+            <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M20.8 5.6a4.8 4.8 0 0 0-6.8 0L12 7.6l-2-2a4.8 4.8 0 1 0-6.8 6.8L12 21l8.8-8.6a4.8 4.8 0 0 0 0-6.8z"/></svg><div class="ab">VIT</div><div class="vl">27</div></div>
+            <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M12 3l7 2.5V11c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V5.5z"/></svg><div class="ab">DIS</div><div class="vl">51</div></div>
+            <div class="c"><svg class="sico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h12v3"/><path d="M3 7v10a2 2 0 0 0 2 2h14V9H5a2 2 0 0 1-2-2z"/></svg><div class="ab">BNK</div><div class="vl">15</div></div>
+          </div>
+          <div class="orn"><span>◆</span></div>
+          <div class="seclbl" style="text-align:center">Today</div>
+          <div class="st-today">
+            <div class="m"><div class="v">+1050</div><div class="l">XP today</div></div>
+            <div class="m"><div class="v">5 / 8</div><div class="l">quests</div></div>
+            <div class="m"><div class="v pos">+7</div><div class="l">gained</div></div>
+            <div class="m"><div class="v neg">−2</div><div class="l">lost</div></div>
+          </div>
+          <div class="st-streak">Active streaks — <b>Nighttime Routine 12</b> · Gym 6 · Read 4</div>
+        </div>
+        <nav class="tab">
+          <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+        </nav>
+      </div></div>
+    </div>
+
+    <!-- QUESTS -->
+    <div class="col">
+      <div class="tag">Quests<span>the everyday screen</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ptitle">Quests</div>
+          <div class="psub">Thursday, 5 Nov · quest day</div>
+          <div style="height:20px"></div>
+          <div class="sleep">
+            <div class="h"><span class="t">SLEEP CHECK-IN</span><span class="n">last night · Wed→Thu</span></div>
+            <div class="opts">
+              <div class="o"><div class="cb"></div>9–11 PM</div>
+              <div class="o"><div class="cb"></div>11–1 AM</div>
+              <div class="o"><div class="cb"></div>After 1</div>
+            </div>
+            <div class="pv">Not recorded yet · pick one to set today's Energy</div>
+          </div>
+          <div class="qcard done">
+            <div class="qtop"><div class="cbx on"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div>
+              <div class="qbody"><div class="qname">Gym Workout</div><div class="qmeta">Daily · completed</div>
+                <div class="qsys"><b class="pos">STR +2</b> · <b class="pos">VIT +1</b> · <b>+450 XP</b> · streak 6</div></div></div>
+          </div>
+          <div class="qcard">
+            <div class="qtop"><div class="cbx"></div>
+              <div class="qbody"><div class="qname">Read for 20 Minutes</div><div class="qmeta">Daily · <span class="tag-eff">INT +1</span></div></div></div>
+          </div>
+          <div class="qcard">
+            <div class="qtop"><div class="qbody">
+              <div class="qname">Smoke-free day?</div><div class="qmeta">Daily · volatile</div>
+              <div class="vol"><div class="opt"><div class="cbx sm"></div>Yes</div><div class="opt"><div class="cbx sm"></div>No</div></div>
+            </div></div>
+          </div>
+          <div class="qcard">
+            <div class="qtop"><div class="cbx"></div>
+              <div class="qbody"><div class="qname">Nighttime Routine</div><div class="qmeta">3 of 4 steps · <span class="tag-eff">VIT +1 · DIS +1</span></div>
+                <div class="subs">
+                  <div class="sub ok"><div class="cbx sm on"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><span class="nm">Brush teeth</span></div>
+                  <div class="sub ok"><div class="cbx sm on"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><span class="nm">Apply hair serum</span></div>
+                  <div class="sub ok"><div class="cbx sm on"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></div><span class="nm">Wash face</span></div>
+                  <div class="sub"><div class="cbx sm"></div><span class="nm">Take multivitamins</span></div>
+                </div></div></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+        <nav class="tab">
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+          <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+        </nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul>
+        <li><b>Cards warm to #1a160f with gold-tinted borders.</b> Completed quests fade in place; the gold checkbox fills on completion.</li>
+        <li>Serif reserved for titles & numbers; task text stays sans for legibility.</li>
+      </ul></div>
+    </div>
+
+    <!-- TODOS -->
+    <div class="col">
+      <div class="tag">To-Dos<span>ungamified</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ptitle">To-Dos</div>
+          <div class="psub">Quick notes & checklists — no stats, no dates</div>
+          <div style="height:22px"></div>
+          <div class="addfield">Add a to-do<span class="plus">+</span></div>
+          <div class="td"><div class="cbx"></div>Call the plumber</div>
+          <div class="td"><div class="cbx"></div>Return library books</div>
+          <div class="td-group">
+            <div class="td" style="border-top:none"><div class="cbx"></div>Buy Groceries</div>
+            <div class="td-child"><div class="cbx sm"></div>Milk</div>
+            <div class="td-child"><div class="cbx sm"></div>Eggs</div>
+            <div class="td-child"><div class="cbx sm"></div>Vegetables</div>
+          </div>
+          <div class="td"><div class="cbx"></div>Renew domain name</div>
+          <div class="arch"><svg class="ico" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--mut)"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>Archive <span style="color:var(--faint)">(3)</span><span class="chev">›</span></div>
+        </div>
+        <nav class="tab">
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+          <a class="on"><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+        </nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul>
+        <li>Kept deliberately plain — the ungamified tab resists ornament. Only the accent on the add-plus and chevron signals the theme.</li>
+      </ul></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="col">
+      <div class="tag">Calendar<span>history + review</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="cal-head">
+            <div class="cal-nav"><span class="a">‹</span>November 2026<span class="a">›</span></div>
+            <div class="seg"><div class="on">Stats</div><div>Sleep</div></div>
+          </div>
+          <div class="vmodes"><b>Monthly</b><span>Weekly</span><span>Daily</span></div>
+          <div class="cal-grid">
+            <div class="wd">S</div><div class="wd">M</div><div class="wd">T</div><div class="wd">W</div><div class="wd">T</div><div class="wd">F</div><div class="wd">S</div>
+            <div class="cell"><div class="d">1</div><div class="nt pos">+3</div></div>
+            <div class="cell"><div class="d">2</div><div class="nt none">–</div></div>
+            <div class="cell"><div class="d">3</div><div class="nt neg">−2</div></div>
+            <div class="cell sel"><div class="d">4</div><div class="nt pos">+6</div></div>
+            <div class="cell today"><div class="d">5</div><div class="nt pos">+4</div></div>
+            <div class="cell future"><div class="d">6</div></div><div class="cell future"><div class="d">7</div></div>
+            <div class="cell future"><div class="d">8</div></div><div class="cell future"><div class="d">9</div></div><div class="cell future"><div class="d">10</div></div><div class="cell future"><div class="d">11</div></div><div class="cell future"><div class="d">12</div></div><div class="cell future"><div class="d">13</div></div><div class="cell future"><div class="d">14</div></div>
+            <div class="cell future"><div class="d">15</div></div><div class="cell future"><div class="d">16</div></div><div class="cell future"><div class="d">17</div></div><div class="cell future"><div class="d">18</div></div><div class="cell future"><div class="d">19</div></div><div class="cell future"><div class="d">20</div></div><div class="cell future"><div class="d">21</div></div>
+            <div class="cell future"><div class="d">22</div></div><div class="cell future"><div class="d">23</div></div><div class="cell future"><div class="d">24</div></div><div class="cell future"><div class="d">25</div></div><div class="cell future"><div class="d">26</div></div><div class="cell future"><div class="d">27</div></div><div class="cell future"><div class="d">28</div></div>
+            <div class="cell future"><div class="d">29</div></div><div class="cell future"><div class="d">30</div></div>
+          </div>
+          <div class="legend"><span><s style="background:var(--pos)"></s>Gain</span><span><s style="background:var(--neg)"></s>Loss</span><span><s style="background:var(--faint)"></s>Zero</span><span><s style="background:#3a3426"></s>Unreported –</span></div>
+          <div class="daysum">
+            <div class="dh"><span class="dt">Tue 4 Nov</span><span class="vd">View details ›</span></div>
+            <div class="three">
+              <div class="m"><div class="v pos">+7</div><div class="l">gained</div></div>
+              <div class="m"><div class="v neg">−1</div><div class="l">lost</div></div>
+              <div class="m"><div class="v">+6</div><div class="l">net</div></div>
+              <div class="m"><div class="v">+900</div><div class="l">XP</div></div>
+            </div>
+            <div class="acts">STR +2 · VIT +2 · INT +1 · DIS +2 · BNK −1<br><b>Gym · Read · Nighttime Routine · Smoke-free: No</b></div>
+          </div>
+        </div>
+        <nav class="tab">
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+          <a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+        </nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul>
+        <li>Four day-states preserved; net values in serif. Today ringed in gold, selected day warm-filled.</li>
+      </ul></div>
+    </div>
+
+    <!-- HOBBIES -->
+    <div class="col">
+      <div class="tag">Hobbies<span>long-term quests</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ptitle">Hobbies</div>
+          <div class="psub">Projects & long-running goals</div>
+          <div style="height:20px"></div>
+          <div class="hob">
+            <div class="hh"><div><div class="hn">Master's Prep — Chip Design</div><div class="hs">Active · finish reward INT +5</div></div><div class="dots">⋮</div></div>
+            <div class="task"><div class="cbx sm"></div><span class="nm">Finish JLPT N4 grammar set</span><span class="tag-eff">INT +1</span></div>
+            <div class="task"><div class="cbx sm"></div><span class="nm">Draft SOP outline</span><span class="ovd">OVERDUE 2d</span></div>
+            <div class="next">Next scheduled · Mock test — Sat 7 Nov</div>
+          </div>
+          <div class="hob">
+            <div class="hh"><div><div class="hn">Learn Guitar</div><div class="hs">Active · finish reward INT +5</div></div><div class="dots">⋮</div></div>
+            <div class="task"><div class="cbx sm"></div><span class="nm">Practice chord transitions</span><span class="tag-eff">DIS +1</span></div>
+          </div>
+          <div class="hob">
+            <div class="hh"><div><div class="hn">Personal Software Project</div><div class="hs">Active</div></div><div class="dots">⋮</div></div>
+            <div class="empty">All wrapped up for now. Schedule more tasks.</div>
+          </div>
+        </div>
+        <nav class="tab">
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+          <a class="on"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+        </nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul>
+        <li>Hobby names in serif; overdue tag in muted red. No progress bars, per the brief.</li>
+      </ul></div>
+    </div>
+
+    <!-- HUB -->
+    <div class="col">
+      <div class="tag">Hub<span>tools · archives · settings</span></div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>7:42</span><span>▰▰▰</span></div>
+        <div class="content">
+          <div class="ptitle">Hub</div>
+          <div style="height:30px"></div>
+          <div class="hub-g"><div class="seclbl">Tools</div>
+            <div class="hub-row"><div><div class="tt">Sleep Log</div><div class="ds">Record & review bedtimes</div></div><span class="chev">›</span></div>
+          </div>
+          <div class="hub-g"><div class="seclbl">Archives</div>
+            <div class="hub-row"><div><div class="tt">Quest Archive</div><div class="ds">Archived & completed one-time quests</div></div><span class="chev">›</span></div>
+            <div class="hub-row"><div><div class="tt">Hobby Archive</div><div class="ds">Paused & finished projects</div></div><span class="chev">›</span></div>
+            <div class="hub-row"><div><div class="tt">To-Do Archive</div><div class="ds">Completed checklists</div></div><span class="chev">›</span></div>
+          </div>
+          <div class="hub-g"><div class="seclbl">Settings</div>
+            <div class="hub-row"><div><div class="tt">Settings</div><div class="ds">Profile, appearance, system rules & guide</div></div><span class="chev">›</span></div>
+          </div>
+        </div>
+        <nav class="tab">
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Quests</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>To-Dos</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar</a>
+          <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg>Hobbies</a>
+          <a class="on"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Hub</a>
+        </nav>
+      </div></div>
+      <div class="notes"><h3>Notes</h3><ul>
+        <li>Divider menu; row titles in serif, gold chevrons. No tile grid.</li>
+      </ul></div>
+    </div>
+
+  </div>
+  <div class="footer"><b>Six main screens in Inked Fantasy.</b> Shared components: gold checkbox, warm quest card, serif numerals, rune dividers (Status), muted green/red for +/−.</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+node_modules
+dist
+design
+docs
+prompts
+tests/CONSISTENT_SAMPLE_DAY.md
+README.md
+AGENTS.md
+MANIFEST_SHA256.txt
+package-lock.json
+test-results
+playwright-report
