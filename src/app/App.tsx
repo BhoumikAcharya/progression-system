@@ -30,7 +30,12 @@ import { HubPage } from '../features/hub/HubPage'
 import { SettingsPage } from '../features/hub/SettingsPage'
 import { GuidePage, SleepPage } from '../features/hub/SupportingPages'
 import { EmptyState, PageHeader } from '../components/ui'
-import { SupabaseAuthRepository, SupabaseProfileRepository, supabaseClient } from '../data/supabase'
+import {
+  SupabaseAuthRepository,
+  SupabaseProfileRepository,
+  sessionCheckInterrupted,
+  supabaseClient,
+} from '../data/supabase'
 import { MorningReport } from '../features/reports/MorningReport'
 const tabs = [
   { to: '/status', label: 'Status', Icon: Activity },
@@ -64,8 +69,10 @@ function Shell() {
       .then((session) => {
         if (active) setAuthorized(Boolean(session))
       })
-      .catch(() => {
-        if (active) setAuthorized(false)
+      .catch((cause: unknown) => {
+        // A dropped connection is not a logout. The server still enforces every read and write.
+        if (active)
+          setAuthorized((current) => (sessionCheckInterrupted(cause) ? (current ?? true) : false))
       })
     return () => {
       active = false
@@ -184,8 +191,10 @@ function ReportRoute() {
       .then((session) => {
         if (active) setAuthorized(Boolean(session))
       })
-      .catch(() => {
-        if (active) setAuthorized(false)
+      .catch((cause: unknown) => {
+        // A dropped connection is not a logout. The server still enforces every read and write.
+        if (active)
+          setAuthorized((current) => (sessionCheckInterrupted(cause) ? (current ?? true) : false))
       })
     return () => {
       active = false

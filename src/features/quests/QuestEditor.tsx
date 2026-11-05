@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { type StatEffects } from '../../domain/types'
 import { StatEditor } from '../../components/StatEditor'
 import { potentialXp, zeroStats } from '../../domain/progression/accounting'
-import { supabaseClient } from '../../data/supabase'
+import { sessionCheckInterrupted, supabaseClient } from '../../data/supabase'
 import { clearQuestCreationRequest, questCreationRequestId } from '../../data/create-request'
 import { questDay } from '../../domain/scheduling/calendar'
 import { Segments } from '../../components/ui'
@@ -86,6 +86,10 @@ export function QuestEditor() {
     try {
       const db = supabaseClient()
       const { data: user, error: authError } = await db.auth.getUser()
+      if (authError && sessionCheckInterrupted(authError)) {
+        setError('Could not reach the server. This draft has not been saved.')
+        return
+      }
       if (authError || !user.user) {
         navigate('/login?next=/quests/new')
         return

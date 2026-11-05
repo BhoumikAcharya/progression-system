@@ -41,6 +41,7 @@ for (const file of [
   '202611050019_private_export.sql',
   '202611060001_idempotent_quest_creation.sql',
   '202611060002_archive_visibility.sql',
+  '202611060003_correctness_fixes.sql',
 ]) {
   const sql = readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8').replace(
     'create extension if not exists pgcrypto;',
@@ -834,5 +835,132 @@ const exportB = (await query(`select public.export_private_data() as backup`))[0
 assert.equal(exportB.account_user_id, a)
 assert.equal(exportB.tables.profiles.length, 1)
 assert.ok(exportB.tables.profiles.every((row) => row.user_id === a))
+
+// Regression: review fixes. Each case uses its own account so earlier state cannot mask it.
+const freshAccount = async () => {
+  const owner = crypto.randomUUID()
+  await db.exec(`reset role; insert into auth.users(id) values ('${owner}');
+   insert into public.profiles(user_id) values ('${owner}');
+   set role authenticated; set request.jwt.claim.sub='${owner}'`)
+  return owner
+}
+const fixDay = (
+  await query(`select (timezone('Asia/Kolkata',now())-interval '3 hours')::date::text as day`)
+)[0].day
+// The embedded test database has a one-millisecond clock, unlike hosted Postgres.
+const pause = () => new Promise((resolve) => setTimeout(resolve, 5))
+const newQuest = async (type, schedule, effects, steps = null) =>
+  (
+    await query(
+      `select id from public.create_quest('${type}','Regression',null,'${schedule}'::jsonb,'${effects}'::jsonb,null,${steps ? `'${steps}'::jsonb` : 'null'})`,
+    )
+  )[0].id
+
+// A Routine removed today can be completed again, without a duplicate award.
+const undoOwner = await freshAccount()
+const undoRoutine = await newQuest('routine', '{"kind":"DAILY"}', '{"STR":1}', '["One","Two"]')
+const undoSteps = await query(
+  `select id from public.routine_steps where quest_id='${undoRoutine}' order by ordinal`,
+)
+const tick = (step) =>
+  query(`select public.record_routine_step('${undoRoutine}','${fixDay}','${step.id}')`)
+for (const step of undoSteps) await tick(step)
+const undone = (
+  await query(`select id,version from public.quest_occurrences where quest_id='${undoRoutine}'`)
+)[0]
+await query(`select public.remove_quest_completion('${undone.id}',${undone.version})`)
+assert.equal(
+  (await query(`select * from public.routine_step_completions where occurrence_id='${undone.id}'`))
+    .length,
+  0,
+)
+assert.equal(
+  (
+    await query(
+      `select before_snapshot from public.audit_events where target_id='${undone.id}' and change_type='completion_removed'`,
+    )
+  )[0].before_snapshot.completed_step_ids.length,
+  2,
+)
+await tick(undoSteps[0])
+assert.equal(
+  (await query(`select status from public.quest_occurrences where id='${undone.id}'`))[0].status,
+  'partial',
+)
+await tick(undoSteps[1])
+const redone = (
+  await query(
+    `select stats,corrected_lifetime_xp from public.profiles where user_id='${undoOwner}'`,
+  )
+)[0]
+assert.equal(redone.stats.STR, 1)
+assert.equal(Number(redone.corrected_lifetime_xp), 150)
+
+// Same-day awards replay in time order: +1 then -1 from zero always ends at zero.
+for (let attempt = 0; attempt < 12; attempt++) {
+  const owner = await freshAccount()
+  const gain = await newQuest('standard', '{"kind":"DAILY"}', '{"STR":1}')
+  const loss = await newQuest('standard', '{"kind":"DAILY"}', '{"STR":-1}')
+  await query(`select public.record_quest('${gain}','${fixDay}')`)
+  await pause()
+  await query(`select public.record_quest('${loss}','${fixDay}')`)
+  const result = (
+    await query(`select stats,corrected_lifetime_xp from public.profiles where user_id='${owner}'`)
+  )[0]
+  assert.equal(result.stats.STR, 0)
+  assert.equal(Number(result.corrected_lifetime_xp), 150)
+}
+
+// A corrected award keeps its place in the day instead of moving to the end.
+const orderOwner = await freshAccount()
+const firstGain = await newQuest('standard', '{"kind":"DAILY"}', '{"STR":1}')
+const secondLoss = await newQuest('standard', '{"kind":"DAILY"}', '{"STR":-1}')
+const pastDay = (await query(`select ('${fixDay}'::date-1)::text as day`))[0].day
+await db.exec(`reset role; update public.quest_schedule_periods set active_from='${pastDay}'
+ where owner_user_id='${orderOwner}'; set role authenticated`)
+await query(`select public.record_quest('${firstGain}','${pastDay}')`)
+await pause()
+await query(`select public.record_quest('${secondLoss}','${pastDay}')`)
+const firstOccurrence = (
+  await query(`select id,version from public.quest_occurrences where quest_id='${firstGain}'`)
+)[0]
+await query(
+  `select public.correct_quest_occurrence('${firstOccurrence.id}',${firstOccurrence.version},null,'${fixDay}')`,
+)
+await query(
+  `select public.correct_quest_occurrence('${firstOccurrence.id}',${firstOccurrence.version + 1},null,'${pastDay}')`,
+)
+assert.equal(
+  (await query(`select stats from public.profiles where user_id='${orderOwner}'`))[0].stats.STR,
+  0,
+)
+
+// A completed one-time quest archives after rollover. A missed one stays, and a new one waits.
+const onceOwner = await freshAccount()
+const onceSpec = `{"kind":"ONCE","date":"${pastDay}"}`
+const completedOnce = await newQuest('standard', onceSpec, '{"INT":1}')
+const missedOnce = await newQuest('standard', onceSpec, '{"INT":1}')
+const todayOnce = await newQuest('standard', `{"kind":"ONCE","date":"${fixDay}"}`, '{"INT":1}')
+await db.exec(`reset role; update public.quest_schedule_periods set active_from='${pastDay}'
+ where owner_user_id='${onceOwner}'; set role authenticated`)
+await query(`select public.record_quest('${completedOnce}','${pastDay}')`)
+await query(`select public.record_quest('${todayOnce}','${fixDay}')`)
+await query(`select public.reconcile_closed_quests()`)
+await query(`select public.reconcile_closed_quests()`)
+const questState = async (id) =>
+  (await query(`select state,version from public.quest_definitions where id='${id}'`))[0]
+assert.deepEqual(await questState(completedOnce), { state: 'archived', version: 2 })
+assert.equal((await questState(missedOnce)).state, 'active')
+assert.equal((await questState(todayOnce)).state, 'active')
+assert.equal(
+  (
+    await query(
+      `select * from public.audit_events where target_id='${completedOnce}' and change_type='auto_archived'`,
+    )
+  ).length,
+  1,
+)
+await rejects(`select public.change_quest_state('${completedOnce}','restore',2)`, '22023')
+
 await db.close()
 console.log('RLS, idempotency, correction, monotonic level and owner isolation: passed')

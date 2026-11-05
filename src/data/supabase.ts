@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js'
 import type { AuthRepository, AuthSession, ProfileRepository, WriteResult } from './contracts'
 import type { PlayerProfile } from '../domain/types'
 let client: SupabaseClient | undefined
@@ -11,10 +11,15 @@ export function supabaseClient(): SupabaseClient {
     auth: { autoRefreshToken: true, persistSession: true },
   }))
 }
+/** True when a login check could not reach the server, so it says nothing about the login. */
+export function sessionCheckInterrupted(cause: unknown): boolean {
+  return isAuthRetryableFetchError(cause)
+}
 export class SupabaseAuthRepository implements AuthRepository {
   constructor(private readonly db: SupabaseClient = supabaseClient()) {}
   async getSession(): Promise<AuthSession | null> {
     const { data, error } = await this.db.auth.getUser()
+    if (error && sessionCheckInterrupted(error)) throw error
     if (error) return null
     return data.user ? { userId: data.user.id } : null
   }

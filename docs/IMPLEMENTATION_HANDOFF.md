@@ -22,11 +22,15 @@ This file is the current-status map for future coding agents. Product behavior i
 | Quest, Hobby, and To-Do Archives looked limited to one day. | Quest/Hobby completion history queries valid award events across **all dates**, including definitions later archived/deleted. To-Do Archive shows all completed roots with their children. |
 | Archive entries needed a right-side removal action. | Migration `202611060002_archive_visibility.sql` adds owner-scoped hidden-entry markers and removal RPCs. Quest/Hobby **Remove** hides the selected definition or completion from its archive list while retaining the underlying private record, earned stats/XP, Calendar history, audit trail, and JSON export. Archived To-Dos are soft-deleted with their children; they have no progression award. Browser, database, and two-account live tests cover this. |
 | Sleep Check-In took too much space. | Hub → Settings now has a device-persistent **Collapsed by default** toggle. The check-in can still be expanded. Connected browser test covers persistence. |
+| A network drop while signed in redirected to the login page, and could lose a quest draft on save. | `getSession` now reports a connection failure separately from a rejected login, and `QuestEditor` keeps the draft. `tests/connected/session-network.spec.ts` covers both, plus a rejected login still signing out. |
+| Removing today's Routine completion left its steps ticked and uncompletable. | Migration `202611060003_correctness_fixes.sql` clears the steps on removal, records them in the audit event, and repairs existing rows. Partial Routines keep their ticks. |
+| Same-day awards replayed in random ID order, so floor-limited stats could end wrong. | The same migration replays by first-recorded time within each activity date and recomputes every account. XP and levels are unaffected because gains are never floor-limited. |
+| Completed one-time quests never archived. | The same migration archives them in `reconcile_owner` after the rollover, with an `auto_archived` audit event. Missed one-time quests stay active for Calendar backfill. |
 | Editor dividers were doubled; Hobbies briefly flashed stale tasks. | CSS editor rows were normalized. Hobbies clears stale results while a fresh load is pending; connected browser test covers the flash. |
 
 ## Verified development state
 
-The only linked live project used for integration checks is `progression-system-dev` (`jtrvzbkklpiuwydaolek`). Migrations through `202611060002_archive_visibility.sql` were previewed for that exact project and applied there. The CLI calls its main branch `production`; that label does **not** mean this is the application's production database.
+The only linked live project used for integration checks is `progression-system-dev` (`jtrvzbkklpiuwydaolek`). Migrations through `202611060002_archive_visibility.sql` were previewed for that exact project and applied there. `202611060003_correctness_fixes.sql` has not been applied to it yet. The CLI calls its main branch `production`; that label does **not** mean this is the application's production database.
 
 Latest recorded results:
 
