@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader, Section } from '../../components/ui'
 import { supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 import {
   loadHiddenArchiveIds,
   loadCompletionHistory,
@@ -49,7 +50,7 @@ export function QuestArchive() {
       setHiddenCompletions(hiddenCompletionIds)
       setError('')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not load quest archive.')
+      setError(describeError(cause, 'Could not load quest archive.'))
     } finally {
       setLoading(false)
     }
@@ -75,7 +76,7 @@ export function QuestArchive() {
       await load()
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not restore quest. Refresh and retry.',
+        describeError(cause, 'Could not restore quest. Refresh and retry.'),
       )
     } finally {
       setBusy(null)
@@ -103,7 +104,7 @@ export function QuestArchive() {
       if (kind === 'quest_definition') setHiddenDefinitions((current) => new Set(current).add(id))
       else setHiddenCompletions((current) => new Set(current).add(id))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not remove entry. Retry safely.')
+      setError(describeError(cause, 'Could not remove entry. Retry safely.'))
     } finally {
       setBusy(null)
     }

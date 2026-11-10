@@ -99,7 +99,7 @@ export function GuidePage() {
       <Section title="A separate space">
         <p>
           To-Dos have no dates, stats, XP, or streaks. Routine rewards belong only to the parent.
-          Hobby subtasks earn independently; a configured finish bonus is awarded exactly once.
+          Hobby tasks have no dates: each earns once when ticked (repeatable tasks once per day); the finish bonus is awarded exactly once.
         </p>
       </Section>
     </>

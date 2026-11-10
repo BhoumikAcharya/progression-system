@@ -5,10 +5,11 @@ import { Divider } from '../../components/ui'
 import { Stats } from '../../components/Stats'
 import { createInitialProfile } from '../profile/profile'
 import { levelState } from '../../domain/progression/accounting'
-import { accountDate, questDay, shiftDate } from '../../domain/scheduling/calendar'
+import { dueDates, questDay, shiftDate } from '../../domain/scheduling/calendar'
 import { sleepEffect } from '../../domain/progression/sleep'
-import type { PlayerProfile, SleepRecord } from '../../domain/types'
+import type { LocalDate, PlayerProfile, Schedule, SleepRecord } from '../../domain/types'
 import { SupabaseProfileRepository, supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 interface Today {
   xp: number
   quests: number
@@ -16,10 +17,42 @@ interface Today {
   lost: number
 }
 const emptyToday: Today = { xp: 0, quests: 0, gained: 0, lost: 0 }
+interface StreakRow {
+  quest_id: string
+  current_length: number
+  generation: number
+  last_scheduled_date: LocalDate | null
+  quest_definitions: {
+    name: string
+    state: string
+    quest_schedule_periods: {
+      generation: number
+      schedule_spec: Schedule
+      active_from: LocalDate
+      active_through: LocalDate | null
+    }[]
+  } | null
+}
+/** A stored run only counts while no scheduled day since its last completion was missed. */
+function liveLength(row: StreakRow, day: LocalDate): number {
+  if (!row.last_scheduled_date || !row.quest_definitions) return 0
+  const period = row.quest_definitions.quest_schedule_periods.find(
+    (p) => p.generation === row.generation,
+  )
+  if (!period || (period.active_through && period.active_through < day)) return 0
+  if (row.last_scheduled_date >= day) return row.current_length
+  const missed = dueDates(
+    period.schedule_spec,
+    shiftDate(row.last_scheduled_date, 1),
+    shiftDate(day, -1),
+  )
+  return missed.length ? 0 : row.current_length
+}
 export function StatusPage() {
   const { name } = usePreferences()
   const [profile, setProfile] = useState<PlayerProfile>(() => createInitialProfile(name))
   const [today, setToday] = useState<Today>(emptyToday)
+  const [streaks, setStreaks] = useState<{ name: string; length: number }[]>([])
   const [error, setError] = useState('')
   const configured = Boolean(
     import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -31,26 +64,43 @@ export function StatusPage() {
       try {
         const db = supabaseClient()
         const account = await new SupabaseProfileRepository(db).load()
-        const calendarDate = accountDate(new Date(), account.timeZone)
-        const previous = shiftDate(calendarDate, -1)
-        const { data: sleep, error: sleepError } = await db
-          .from('sleep_records')
-          .select('category')
-          .eq('sleep_night_date', previous)
-          .maybeSingle()
-        if (sleepError) throw sleepError
+        // Energy follows the quest day: between midnight and 03:00 it still reflects the night
+        // before the day that is being played, not a night that has not been slept yet.
+        const day = questDay(new Date(), account.timeZone)
+        const previous = shiftDate(day, -1)
+        const [sleepResult, eventResult, streakResult] = await Promise.all([
+          db
+            .from('sleep_records')
+            .select('category')
+            .eq('sleep_night_date', previous)
+            .maybeSingle(),
+          db
+            .from('reward_source_events')
+            .select(
+              'source_type,stat_ledger_entries(effective_delta),xp_ledger_entries(credit_delta,reason)',
+            )
+            .eq('activity_date', day)
+            .eq('valid', true),
+          db
+            .from('streak_states')
+            .select(
+              'quest_id,current_length,generation,last_scheduled_date,quest_definitions(name,state,quest_schedule_periods(generation,schedule_spec,active_from,active_through))',
+            )
+            .gt('current_length', 0),
+        ])
+        if (sleepResult.error) throw sleepResult.error
+        if (eventResult.error) throw eventResult.error
+        if (streakResult.error) throw streakResult.error
+        const sleep = sleepResult.data
         account.energy = sleep
           ? sleepEffect(sleep.category as SleepRecord['category']).nextDayEnergy
           : null
-        const day = questDay(new Date(), account.timeZone)
-        const { data: events, error: eventError } = await db
-          .from('reward_source_events')
-          .select(
-            'source_type,stat_ledger_entries(effective_delta),xp_ledger_entries(credit_delta,reason)',
-          )
-          .eq('activity_date', day)
-          .eq('valid', true)
-        if (eventError) throw eventError
+        const events = eventResult.data
+        const activeStreaks = ((streakResult.data ?? []) as unknown as StreakRow[])
+          .filter((row) => row.quest_definitions?.state === 'active')
+          .map((row) => ({ name: row.quest_definitions!.name, length: liveLength(row, day) }))
+          .filter((row) => row.length > 0)
+          .sort((a, b) => b.length - a.length || a.name.localeCompare(b.name))
         const stats = (events ?? []).flatMap((event) => event.stat_ledger_entries ?? [])
         const total: Today = {
           xp: (events ?? [])
@@ -64,10 +114,11 @@ export function StatusPage() {
         if (active) {
           setProfile(account)
           setToday(total)
+          setStreaks(activeStreaks)
           setError('')
         }
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : 'Could not load profile.')
+        if (active) setError(describeError(cause, 'Could not load profile.'))
       }
     }
     void load()
@@ -155,11 +206,27 @@ export function StatusPage() {
               <dt>Points lost</dt>
             </div>
           </dl>
-          <p className="streak-note">
-            {configured
-              ? 'Quest streaks appear on recorded activities.'
-              : 'No active quest streaks yet.'}
-          </p>
+          {streaks.length ? (
+            <ul className="streak-list" aria-label="Active quest streaks">
+              {streaks.map((streak) => (
+                <li key={streak.name}>
+                  <span>{streak.name}</span>
+                  <span>
+                    Streak {streak.length}
+                    {streak.length % 3 === 0
+                      ? ' · bonus earned'
+                      : ` · bonus at ${streak.length + 3 - (streak.length % 3)}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="streak-note">
+              {configured
+                ? 'No active quest streaks. Three completions in a row earn a bonus.'
+                : 'No active quest streaks yet.'}
+            </p>
+          )}
         </section>
       </div>
       {!configured && (

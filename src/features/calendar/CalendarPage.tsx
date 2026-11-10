@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { describeError } from '../../data/errors'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PageHeader, Segments } from '../../components/ui'
 import { accountCalendarDate, addDays, dateKey, formatDate, monthCells } from './dates'
@@ -50,7 +51,7 @@ export function CalendarPage() {
       }
       setError('')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not load Calendar history.')
+      setError(describeError(cause, 'Could not load Calendar history.'))
     } finally {
       setLoading(false)
     }

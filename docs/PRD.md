@@ -41,7 +41,7 @@ Six bottom destinations, in order: `Status`, `Quests`, `To-Dos`, `Calendar`, `Ho
 - Full five-stat **vertical stack editor** with icon/name/minus/signed value/plus. Values can be negative, zero, positive. Live XP preview counts positive assigned points × 150.
 - Volatile: edit both outcome labels and independent five-stat effects with compact outcome tabs, no ten simultaneous stat rows required.
 - Routine: one-level subtask list, reorder, add, rename, remove; stat effects only on parent.
-- Hobby: independent scheduled/rewarded subtasks, add/edit/reorder/delete; configurable one-time Finish reward default INT +5, plus Finish action when editing active hobby. Hobby create from Quests only.
+- Hobby: dateless checklist of rewarded tasks (plain or repeatable), add/edit/reorder/delete; configurable one-time Finish reward default INT +5, plus Finish action when editing active hobby. Hobby create from Quests only.
 - Save pinned above bottom nav; inline validation, cancel, unsaved-change warnings and destructive confirmation.
 
 ### Quick To-Dos
@@ -52,8 +52,8 @@ Six bottom destinations, in order: `Status`, `Quests`, `To-Dos`, `Calendar`, `Ho
 
 ### Hobbies
 
-- Active Hobby/Project parent cards with name, current/overdue subtasks, stat hints, next scheduled task and finish reward. No progress %, no general hobby streak, no unnecessary icons per hobby.
-- Each hobby subtask has own occurrence schedule and configurable effects, earns once per occurrence; overdue tasks remain visible and reschedulable. When none remain, show: `All wrapped up for now. Schedule more tasks.`
+- Active Hobby/Project parent cards with name, open tasks in order, stat hints, a collapsible list of done tasks and the finish reward. No progress %, no general hobby streak, no unnecessary icons per hobby.
+- Each hobby task has configurable effects and earns once when ticked; a repeatable task earns again on later days, once per day. Nothing is overdue and nothing is rescheduled. When no open tasks remain, show: `All wrapped up for now. Add more tasks or finish the hobby.`
 - Overflow/long-press: Add Tasks, Edit, Archive, Delete. Finish action in editing experience: awards one-time finish points then permanently archives. Archive/restore is reversible and does **not** award finish bonus. Delete preserves historical ledger and calendar records.
 
 ### Sleep

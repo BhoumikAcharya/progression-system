@@ -28,11 +28,11 @@ Parent shows subtask checklist and no reward until all children checked. Final c
 
 ## Adding / editing quests
 
-From Quests `+`: Add Quest with type selector top-right; Standard, Volatile, Routine, Hobby. Choose type, set name/optional description, recurrence calendar/weekday selector, full five-stat effects via vertical steppers, live XP preview. For Volatile, edit two custom outcome labels independently. For Routine, manage one-level subtask list with parent reward. For Hobby, subtask schedule/reward and one-time finish reward. Save; return to originating tab (Hobby created from Quests but appears in Hobbies). Back/discard warns on dirty form; changing type warns on data loss. Edit locks type, preserves history and active streak for non-schedule edits. Changing schedule resets streak.
+From Quests `+`: Add Quest with type selector top-right; Standard, Volatile, Routine, Hobby. Choose type, set name/optional description, recurrence calendar/weekday selector, full five-stat effects via vertical steppers, live XP preview. For Volatile, edit two custom outcome labels independently. For Routine, manage one-level subtask list with parent reward. For Hobby, a task list (name, reward, repeatable flag) and one-time finish reward. Save; return to originating tab (Hobby created from Quests but appears in Hobbies). Back/discard warns on dirty form; changing type warns on data loss. Edit locks type, preserves history and active streak for non-schedule edits. Changing schedule resets streak.
 
 ## Hobbies
 
-Active hobby card contains due and overdue subtasks with checkbox, outcome reward hints and next scheduled task. Empty card shows `All wrapped up for now. Schedule more tasks.`. Long-press or accessible overflow gives Add Tasks, Edit, Archive, Delete. Finish Hobby action in editor grants bonus once then moves to finished archive. Restored archived hobby resumes with previous history; finished cannot restore. Overdue subtasks can be rescheduled, but this must not create a new reward for an already rewarded occurrence.
+Active hobby card lists open tasks in order with a checkbox and reward hint, plus a collapsible list of done tasks with their dates and an Undo for today's ticks. Empty card shows `All wrapped up for now. Add more tasks or finish the hobby.`. Long-press or accessible overflow gives Edit tasks, Archive, Finish, Delete. Finish Hobby grants bonus once then moves to finished archive. Restored archived hobby resumes with previous history; finished cannot restore. Tasks have no dates and are never overdue.
 
 ## Quick To-Dos
 

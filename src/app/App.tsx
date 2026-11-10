@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { describeError } from '../data/errors'
 import { Activity, CalendarDays, Compass, Grid2X2, List, SquareCheck } from 'lucide-react'
 import {
   BrowserRouter,
@@ -82,8 +83,11 @@ function Shell() {
     if (!configured || authorized !== true || pathname === '/login') return
     let checking = false
     async function checkReport() {
+      // Never claim the daily report while a draft is open; the editor would be discarded.
+      const editing = /^\/quests\/new|^\/hobbies\/[^/]+\/edit/.test(window.location.pathname)
       if (
         checking ||
+        editing ||
         !navigator.onLine ||
         document.hidden ||
         Date.now() - reportLastCheckedAt.current < 60_000
@@ -100,7 +104,7 @@ function Shell() {
         setReportError('')
         if (data) navigate(`/report/${data}`, { replace: true })
       } catch (cause) {
-        setReportError(cause instanceof Error ? cause.message : 'Could not check report.')
+        setReportError(describeError(cause, 'Could not check report.'))
       } finally {
         checking = false
       }
@@ -238,7 +242,7 @@ function LoginPage() {
       const next = params.get('next')
       navigate(next?.startsWith('/') && !next.startsWith('//') ? next : '/status')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Sign-in failed.')
+      setError(describeError(cause, 'Sign-in failed.'))
     } finally {
       setBusy(false)
     }

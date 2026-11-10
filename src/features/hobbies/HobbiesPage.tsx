@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom'
 import { MoreHorizontal } from 'lucide-react'
 import { EmptyState, PageHeader } from '../../components/ui'
 import { supabaseClient } from '../../data/supabase'
-import { dueDates, questDay, shiftDate } from '../../domain/scheduling/calendar'
-import type { LocalDate, Schedule, StatEffects } from '../../domain/types'
+import { describeError } from '../../data/errors'
+import { questDay } from '../../domain/scheduling/calendar'
+import type { LocalDate, StatEffects } from '../../domain/types'
 
 interface HobbyStep {
   id: string
   name: string
-  schedule_spec: Schedule
   effects: StatEffects
   ordinal: number
   state: string
-  active_from: LocalDate
+  repeatable: boolean
 }
 interface HobbyRow {
   id: string
@@ -24,31 +24,33 @@ interface HobbyRow {
   hobby_steps: HobbyStep[]
 }
 interface OccurrenceRow {
+  id: string
   step_id: string
   scheduled_date: LocalDate
-}
-interface RescheduleRow {
-  step_id: string
-  scheduled_date: LocalDate
-  rescheduled_for: LocalDate
+  actual_activity_date: LocalDate | null
+  version: number
 }
 const configured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 )
+const DEFAULT_ZONE = 'Asia/Kolkata'
+function effectsText(effects: StatEffects | Partial<StatEffects>) {
+  return Object.entries(effects)
+    .filter(([, value]) => value !== 0)
+    .map(([key, value]) => `${key} ${value > 0 ? '+' : ''}${value}`)
+    .join(' · ')
+}
 export function HobbiesPage() {
   const [hobbies, setHobbies] = useState<HobbyRow[]>([])
   const [occurrences, setOccurrences] = useState<OccurrenceRow[]>([])
-  const [reschedules, setReschedules] = useState<RescheduleRow[]>([])
-  const [day, setDay] = useState<LocalDate>(() => questDay(new Date(), 'Asia/Kolkata'))
+  const [zone, setZone] = useState(DEFAULT_ZONE)
+  const [day, setDay] = useState<LocalDate>(() => questDay(new Date(), DEFAULT_ZONE))
   const [loading, setLoading] = useState(configured)
+  const [loaded, setLoaded] = useState(!configured)
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [more, setMore] = useState<Record<string, number>>({})
-  const [rescheduling, setRescheduling] = useState<string | null>(null)
-  const [rescheduleDate, setRescheduleDate] = useState<LocalDate>(() =>
-    questDay(new Date(), 'Asia/Kolkata'),
-  )
+  const [showDone, setShowDone] = useState<Record<string, boolean>>({})
   const load = useCallback(async () => {
     if (!configured) return
     setLoading(true)
@@ -59,11 +61,10 @@ export function HobbiesPage() {
         .select('time_zone')
         .single()
       if (profileError || !profile) throw profileError ?? new Error('Profile unavailable')
-      setDay(questDay(new Date(), profile.time_zone))
       const { data, error: hobbyError } = await db
         .from('hobbies')
         .select(
-          'id,name,description,version,finish_effects,hobby_steps(id,name,schedule_spec,effects,ordinal,state,active_from)',
+          'id,name,description,version,finish_effects,hobby_steps(id,name,effects,ordinal,state,repeatable)',
         )
         .eq('state', 'active')
         .order('created_at')
@@ -71,33 +72,26 @@ export function HobbiesPage() {
       const active = (data ?? []) as unknown as HobbyRow[]
       const ids = active.flatMap((hobby) => hobby.hobby_steps.map((step) => step.id))
       let nextOccurrences: OccurrenceRow[] = []
-      let nextReschedules: RescheduleRow[] = []
       if (ids.length) {
         const { data: rows, error: occurrenceError } = await db
           .from('hobby_occurrences')
-          .select('step_id,scheduled_date')
+          .select('id,step_id,scheduled_date,actual_activity_date,version')
           .in('step_id', ids)
           .not('completed_at', 'is', null)
         if (occurrenceError) throw occurrenceError
         nextOccurrences = (rows ?? []) as OccurrenceRow[]
-        const { data: moved, error: moveError } = await db
-          .from('hobby_reschedules')
-          .select('step_id,scheduled_date,rescheduled_for')
-          .in('step_id', ids)
-        if (moveError) throw moveError
-        nextReschedules = (moved ?? []) as RescheduleRow[]
       }
+      setZone(profile.time_zone)
+      setDay(questDay(new Date(), profile.time_zone))
       setHobbies(active)
       setOccurrences(nextOccurrences)
-      setReschedules(nextReschedules)
       setError('')
     } catch (cause) {
-      setHobbies([])
-      setOccurrences([])
-      setReschedules([])
-      setError(cause instanceof Error ? cause.message : 'Could not load hobbies.')
+      // A failed refresh keeps the last known cards visible next to the error.
+      setError(describeError(cause, 'Could not load hobbies.'))
     } finally {
       setLoading(false)
+      setLoaded(true)
     }
   }, [])
   useEffect(() => {
@@ -109,57 +103,53 @@ export function HobbiesPage() {
       window.removeEventListener('focus', focus)
     }
   }, [load])
-  async function record(stepId: string, date: LocalDate) {
-    if (!navigator.onLine) {
-      setError('Offline. Nothing was recorded.')
-      return
-    }
-    setPending(stepId)
-    setError('')
-    try {
-      const { error: saveError } = await supabaseClient().rpc('record_hobby_step', {
-        p_step_id: stepId,
-        p_scheduled_date: date,
-      })
-      if (saveError) throw saveError
-      await load()
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Could not record subtask. Refresh and retry.',
-      )
-    } finally {
-      setPending(null)
-    }
-  }
-  async function reschedule(stepId: string, scheduledDate: LocalDate) {
+  // Repeatable tasks reset at the 03:00 rollover, so re-read the day while the tab stays open.
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (questDay(new Date(), zone) !== day) void load()
+    }, 60_000)
+    return () => window.clearInterval(interval)
+  }, [day, zone, load])
+  async function write(id: string, action: () => PromiseLike<{ error: unknown }>, failure: string) {
     if (!navigator.onLine) {
       setError('Offline. Nothing was changed.')
       return
     }
-    setPending(stepId)
+    setPending(id)
     setError('')
     try {
-      const { error: saveError } = await supabaseClient().rpc('reschedule_hobby_step', {
-        p_step_id: stepId,
-        p_scheduled_date: scheduledDate,
-        p_new_date: rescheduleDate,
-      })
+      const { error: saveError } = await action()
       if (saveError) throw saveError
-      setRescheduling(null)
       await load()
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Could not reschedule subtask. Refresh and retry.',
-      )
+      setError(describeError(cause, failure))
     } finally {
       setPending(null)
     }
   }
-  async function change(hobby: HobbyRow, action: 'archive' | 'delete' | 'finish') {
-    if (!navigator.onLine) {
-      setError('Offline. Nothing was changed.')
+  const complete = (step: HobbyStep) =>
+    write(
+      step.id,
+      () => supabaseClient().rpc('complete_hobby_task', { p_step_id: step.id }),
+      'Could not record the task. Refresh and retry.',
+    )
+  const undo = (step: HobbyStep, occurrence: OccurrenceRow) => {
+    if (!window.confirm(`Remove today’s completion of ${step.name}? Its award is withdrawn.`))
       return
-    }
+    return write(
+      step.id,
+      () =>
+        supabaseClient().rpc('correct_hobby_occurrence', {
+          p_occurrence_id: occurrence.id,
+          p_expected_version: occurrence.version,
+          p_new_activity_date: null,
+          p_new_effects: null,
+          p_remove: true,
+        }),
+      'Could not remove the completion. Refresh and retry.',
+    )
+  }
+  const change = (hobby: HobbyRow, action: 'archive' | 'delete' | 'finish') => {
     if (
       (action === 'delete' || action === 'finish') &&
       !window.confirm(
@@ -169,34 +159,25 @@ export function HobbiesPage() {
       )
     )
       return
-    setPending(hobby.id)
-    setError('')
-    try {
-      const db = supabaseClient()
-      const { error: saveError } =
+    return write(
+      hobby.id,
+      () =>
         action === 'finish'
-          ? await db.rpc('finish_hobby', {
+          ? supabaseClient().rpc('finish_hobby', {
               p_hobby_id: hobby.id,
               p_expected_version: hobby.version,
             })
-          : await db.rpc('change_hobby_state', {
+          : supabaseClient().rpc('change_hobby_state', {
               p_hobby_id: hobby.id,
               p_action: action,
               p_expected_version: hobby.version,
-            })
-      if (saveError) throw saveError
-      await load()
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Could not update hobby. Refresh and retry.',
-      )
-    } finally {
-      setPending(null)
-    }
+            }),
+      'Could not update hobby. Refresh and retry.',
+    )
   }
   return (
     <>
-      <PageHeader title="Hobbies" subtitle="Projects & long-running goals" />
+      <PageHeader title="Hobbies" subtitle="Projects & long-running goals · no deadlines" />
       {error && (
         <p className="form-error" role="alert">
           {error}{' '}
@@ -205,56 +186,32 @@ export function HobbiesPage() {
           </button>
         </p>
       )}
-      {loading && <p className="meta">Loading hobbies…</p>}
-      {!loading && hobbies.length === 0 && (
+      {loading && !loaded && <p className="meta">Loading hobbies…</p>}
+      {loading && loaded && (
+        <p className="meta" role="status">
+          Refreshing…
+        </p>
+      )}
+      {loaded && hobbies.length === 0 && !error && (
         <EmptyState title="Room for something meaningful.">
           No active hobbies yet. Create a Hobby / Project from Quests.
         </EmptyState>
       )}
-      {!loading &&
+      {loaded &&
         hobbies.map((hobby) => {
-          const completed = new Set(
+          const steps = [...hobby.hobby_steps]
+            .filter((step) => step.state === 'active')
+            .sort((a, b) => a.ordinal - b.ordinal)
+          const forStep = (step: HobbyStep) =>
             occurrences
-              .filter((row) => hobby.hobby_steps.some((step) => step.id === row.step_id))
-              .map((row) => `${row.step_id}:${row.scheduled_date}`),
-          )
-          const pendingDates = hobby.hobby_steps
-            .filter((step) => step.state === 'active')
-            .flatMap((step) =>
-              dueDates(step.schedule_spec, step.active_from, day)
-                .filter((date) => !completed.has(`${step.id}:${date}`))
-                .map((date) => ({
-                  step,
-                  date,
-                  shownDate:
-                    reschedules.find(
-                      (row) => row.step_id === step.id && row.scheduled_date === date,
-                    )?.rescheduled_for ?? date,
-                })),
-            )
-            .filter((row) => row.shownDate <= day)
-            .sort(
-              (a, b) => b.shownDate.localeCompare(a.shownDate) || a.step.ordinal - b.step.ordinal,
-            )
-          const limit = more[hobby.id] ?? 20
-          const futureDates = hobby.hobby_steps
-            .filter((step) => step.state === 'active')
-            .flatMap((step) => {
-              const fromSchedule =
-                step.schedule_spec.kind === 'ONCE' && step.schedule_spec.date > day
-                  ? [step.schedule_spec.date]
-                  : dueDates(step.schedule_spec, shiftDate(day, 1), shiftDate(day, 366)).slice(0, 1)
-              const moved = reschedules
-                .filter(
-                  (row) =>
-                    row.step_id === step.id &&
-                    row.rescheduled_for > day &&
-                    !completed.has(`${step.id}:${row.scheduled_date}`),
-                )
-                .map((row) => row.rescheduled_for)
-              return [...fromSchedule, ...moved]
-            })
-            .sort()
+              .filter((row) => row.step_id === step.id)
+              .sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date))
+          const open = steps.filter((step) => {
+            const done = forStep(step)
+            return step.repeatable ? !done.some((row) => row.scheduled_date === day) : !done.length
+          })
+          const finished = steps.filter((step) => !open.includes(step))
+          const busy = Boolean(pending)
           return (
             <article className="hobby-card" key={hobby.id} aria-label={hobby.name}>
               <div className="hobby-head">
@@ -273,113 +230,107 @@ export function HobbiesPage() {
               </div>
               {expanded === hobby.id && (
                 <div className="hobby-actions">
-                  <Link to={`/hobbies/${hobby.id}/edit`}>Edit</Link>
-                  <button
-                    disabled={pending === hobby.id}
-                    onClick={() => void change(hobby, 'archive')}
-                  >
+                  <Link to={`/hobbies/${hobby.id}/edit`}>Edit tasks</Link>
+                  <button disabled={busy} onClick={() => void change(hobby, 'archive')}>
                     Archive
                   </button>
-                  <button
-                    disabled={pending === hobby.id}
-                    onClick={() => void change(hobby, 'finish')}
-                  >
+                  <button disabled={busy} onClick={() => void change(hobby, 'finish')}>
                     Finish
                   </button>
-                  <button
-                    disabled={pending === hobby.id}
-                    onClick={() => void change(hobby, 'delete')}
-                  >
+                  <button disabled={busy} onClick={() => void change(hobby, 'delete')}>
                     Delete
                   </button>
                 </div>
               )}
-              {pendingDates.length ? (
+              {open.length ? (
                 <div className="hobby-task-list">
-                  {pendingDates.slice(0, limit).map(({ step, date, shownDate }) => {
-                    const key = `${step.id}:${date}`
+                  {open.map((step) => {
+                    const times = forStep(step).length
                     return (
-                      <div className="hobby-task" key={key}>
+                      <div className="hobby-task" key={step.id}>
                         <button
                           className="hobby-task-main"
-                          disabled={Boolean(pending)}
-                          onClick={() => void record(step.id, date)}
+                          aria-label={`Complete ${step.name}`}
+                          disabled={busy}
+                          onClick={() => void complete(step)}
                         >
                           <span className="empty-checkbox" aria-hidden="true" />
                           <span>
                             {step.name}
-                            <small>
-                              {shownDate}
-                              {shownDate < day && <em className="overdue-tag">Overdue</em>}
-                              {shownDate !== date && ` · originally ${date}`}
-                            </small>
+                            {step.repeatable && (
+                              <small>
+                                Repeatable · once per day
+                                {times ? ` · done ${times} ${times === 1 ? 'time' : 'times'}` : ''}
+                              </small>
+                            )}
                           </span>
                           <span className="meta">
-                            {Object.entries(step.effects)
-                              .filter(([, value]) => value !== 0)
-                              .map(([key, value]) => `${key} ${value > 0 ? '+' : ''}${value}`)
-                              .join(' · ')}
+                            {effectsText(step.effects) || 'No stat effect'}
                           </span>
                         </button>
-                        {shownDate < day && (
-                          <button
-                            className="text-link"
-                            disabled={Boolean(pending)}
-                            onClick={() => {
-                              setRescheduling(rescheduling === key ? null : key)
-                              setRescheduleDate(day)
-                            }}
-                          >
-                            Reschedule
-                          </button>
-                        )}
-                        {rescheduling === key && (
-                          <div className="hobby-reschedule">
-                            <label>
-                              New date{' '}
-                              <input
-                                type="date"
-                                min={day}
-                                value={rescheduleDate}
-                                onChange={(event) =>
-                                  setRescheduleDate(event.target.value as LocalDate)
-                                }
-                              />
-                            </label>
-                            <button
-                              className="outline-button"
-                              disabled={Boolean(pending)}
-                              onClick={() => void reschedule(step.id, date)}
-                            >
-                              Save date
-                            </button>
-                          </div>
-                        )}
+                        {pending === step.id && <p className="meta">Saving…</p>}
                       </div>
                     )
                   })}
                 </div>
               ) : (
                 <p className="meta">
-                  {futureDates[0]
-                    ? `Next scheduled task: ${futureDates[0]}.`
-                    : 'All wrapped up for now. Schedule more tasks.'}
+                  {steps.length
+                    ? 'All wrapped up for now. Add more tasks or finish the hobby.'
+                    : 'No tasks yet. Add some from Edit tasks.'}
                 </p>
               )}
-              {pendingDates.length > limit && (
-                <button
-                  className="text-link"
-                  onClick={() => setMore((current) => ({ ...current, [hobby.id]: limit + 20 }))}
-                >
-                  Show more overdue tasks
-                </button>
+              {finished.length > 0 && (
+                <>
+                  <button
+                    className="text-link"
+                    aria-expanded={Boolean(showDone[hobby.id])}
+                    onClick={() =>
+                      setShowDone((current) => ({ ...current, [hobby.id]: !current[hobby.id] }))
+                    }
+                  >
+                    {showDone[hobby.id] ? 'Hide' : 'Show'} {finished.length} done
+                  </button>
+                  {showDone[hobby.id] && (
+                    <div className="hobby-task-list hobby-done-list">
+                      {finished.map((step) => {
+                        const latest = forStep(step)[0]
+                        const today = latest?.scheduled_date === day
+                        return (
+                          <div className="hobby-task completed" key={step.id}>
+                            <span className="hobby-task-main">
+                              <span className="empty-checkbox is-checked" aria-hidden="true">
+                                ✓
+                              </span>
+                              <span>
+                                {step.name}
+                                <small>
+                                  {step.repeatable ? 'Done today' : 'Done'}
+                                  {latest?.actual_activity_date
+                                    ? ` · ${latest.actual_activity_date}`
+                                    : ''}
+                                </small>
+                              </span>
+                              <span className="meta">{effectsText(step.effects)}</span>
+                            </span>
+                            {today && latest && (
+                              <button
+                                className="text-link"
+                                disabled={busy}
+                                onClick={() => void undo(step, latest)}
+                              >
+                                Undo
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               )}
               <p className="meta">
-                Finish reward:{' '}
-                {Object.entries(hobby.finish_effects)
-                  .filter(([, value]) => value !== 0)
-                  .map(([key, value]) => `${key} ${value > 0 ? '+' : ''}${value}`)
-                  .join(' · ') || 'No stat effect'}
+                Finish reward: {effectsText(hobby.finish_effects) || 'No stat effect'}
               </p>
             </article>
           )

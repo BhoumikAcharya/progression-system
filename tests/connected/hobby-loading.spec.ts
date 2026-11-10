@@ -60,11 +60,10 @@ test('completed hobby tasks do not flash while completion data is loading', asyn
             {
               id: '20000000-0000-4000-8000-000000000001',
               name: 'Paint a study',
-              schedule_spec: { kind: 'ONCE', date: '2026-11-06' },
               effects: { INT: 1 },
               ordinal: 1,
               state: 'active',
-              active_from: '2026-11-01',
+              repeatable: false,
             },
           ],
         },
@@ -73,8 +72,11 @@ test('completed hobby tasks do not flash while completion data is loading', asyn
       await occurrenceGate
       return json([
         {
+          id: '30000000-0000-4000-8000-000000000001',
           step_id: '20000000-0000-4000-8000-000000000001',
           scheduled_date: '2026-11-06',
+          actual_activity_date: '2026-11-06',
+          version: 1,
         },
       ])
     }
@@ -91,4 +93,7 @@ test('completed hobby tasks do not flash while completion data is loading', asyn
   releaseOccurrences()
   await expect(page.getByText('All wrapped up for now.')).toBeVisible()
   await expect(page.getByText('Paint a study')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Show 1 done' }).click()
+  await expect(page.getByText('Paint a study')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible()
 })

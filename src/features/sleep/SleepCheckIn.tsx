@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { accountDate, shiftDate } from '../../domain/scheduling/calendar'
 import type { LocalDate } from '../../domain/types'
 import { supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 import { sleepCollapsedByDefault } from '../../data/sleep-preferences'
 
 type Category = 'EARLY' | 'MIDDLE' | 'LATE'
@@ -56,7 +57,7 @@ export function SleepCheckIn({
       setRecord(data as SleepRow | null)
       setError('')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not load sleep record.')
+      setError(describeError(cause, 'Could not load sleep record.'))
     } finally {
       setLoading(false)
     }
@@ -88,7 +89,7 @@ export function SleepCheckIn({
       onSaved?.()
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Could not record sleep. Refresh and retry.',
+        describeError(cause, 'Could not record sleep. Refresh and retry.'),
       )
     } finally {
       setPending(false)

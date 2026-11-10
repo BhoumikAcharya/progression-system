@@ -5,6 +5,7 @@ import { parseLocalDate, shiftDate } from '../../domain/scheduling/calendar'
 import { summarizeDay } from '../../domain/history/summary'
 import { loadHistory, type HistoryBundle } from '../../data/history'
 import { supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 
 const empty: HistoryBundle = {
   timeZone: 'Asia/Kolkata',
@@ -64,7 +65,7 @@ export function MorningReport() {
         setError('')
       })
       .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Could not load report.')
+        if (active) setError(describeError(cause, 'Could not load report.'))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -111,7 +112,7 @@ export function MorningReport() {
         })
         if (saveError) throw saveError
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Could not dismiss report. Retry safely.')
+        setError(describeError(cause, 'Could not dismiss report. Retry safely.'))
         setBusy(false)
         return
       }

@@ -14,8 +14,8 @@ This is a starting relational architecture. Codex should produce actual reviewed
 | `quest_occurrences` | PK; owner; FK quest; scheduled slot date; stable `occurrence_key`; `status` unreported/partial/completed; `selected_outcome_id`; `actual_activity_date`; timestamps; `version`; UNIQUE(owner,quest,occurrence_key) | Idempotent recurring/once-only reward identity |
 | `routine_step_completions` | PK; FK occurrence, step; completed bool/time; UNIQUE(occurrence,step) | Completion progress per routine occurrence |
 | `hobbies` | PK; owner, name, description; Active/Archived/Finished/Deleted; finish-effect config; `finished_at`; `version` | Long-term parent lifecycle |
-| `hobby_steps` | PK; FK hobby; name, schedule spec, signed effects, ordinal, state, version | Individually scheduled rewarding subtasks |
-| `hobby_occurrences` | PK; owner; step; scheduled date/key; actual date; status; version; UNIQUE(owner,step,occurrence_key) | Idempotent hobby subtask completions |
+| `hobby_steps` | PK; FK hobby; name, signed effects, ordinal, repeatable, state, version (legacy schedule spec kept for history) | Dateless rewarding tasks |
+| `hobby_occurrences` | PK; owner; step; quest day ticked (`scheduled_date`); actual date; version; UNIQUE(owner,step,scheduled_date) | Idempotent hobby task completions; one row per task (or per task-day when repeatable) |
 | `hobby_finish_awards` | PK, owner; FK hobby UNIQUE; awarded snapshot, actual date, awarded_at | Exactly-once finish award |
 | `sleep_records` | PK; owner; `sleep_night_date`; `category` EARLY/MIDDLE/LATE; recorded_at/updated_at, version; UNIQUE(owner,sleep_night_date) | One sleep log across screens |
 | `todo_items` | PK; owner; `parent_id` nullable FK self; title, done, position, archived status, deleted flag; enforce parent depth ≤1 | Single and nested unscored notes |
@@ -30,7 +30,8 @@ You may consolidate tables or use event sourcing differently if equivalent invar
 ## Uniqueness and idempotency
 
 - Quest occurrence: UNIQUE `(owner_user_id, quest_definition_id, occurrence_key)`.
-- Hobby subtask: UNIQUE `(owner_user_id, hobby_step_id, occurrence_key)`.
+- Hobby task: UNIQUE `(owner_user_id, step_id, scheduled_date)`; a non-repeatable task additionally has at most one completed row, enforced in `complete_hobby_task` under the step lock.
+- Profile: `last_reconciled_quest_day` watermark for closed-day reconciliation.
 - Sleep: UNIQUE `(owner_user_id, sleep_night_date)`.
 - Hobby finish award: UNIQUE `(owner_user_id, hobby_id)`.
 - Reward ledger source revisions unique so retries cannot credit twice.

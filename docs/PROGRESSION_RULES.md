@@ -5,7 +5,7 @@ Every screen consumes a **single authoritative domain engine**. Never embed rewa
 ## 1. Terms
 
 - `quest_day(date_time, zone)`: local date after shifting the local time by −3 hours. Thus 2026-11-05 02:59 IST belongs to the Nov 4 quest day, 03:00 belongs to Nov 5.
-- `scheduled_occurrence`: a distinct recurrence due slot for a specific quest or hobby subtask; has stable identity even if entered later.
+- `scheduled_occurrence`: a distinct recurrence due slot for a specific quest; has stable identity even if entered later. Hobby tasks have no due slots; a hobby completion is keyed by task and the quest day it was ticked.
 - `actual_activity_date`: user's declared date of performing task. A past correction uses the date of the activity, not merely the timestamp when the app was opened. For quest-day tasks, use the local quest-day date; Sleep is special.
 - `recorded_at`: immutable creation timestamp; `updated_at` for corrections; these are not activity dates.
 - `raw_effect`: signed stat delta configured at the occurrence and saved in immutable config snapshot, e.g. `{STR:2, VIT:-1}`.
@@ -79,7 +79,7 @@ All subtasks must be complete to award the parent once. Partial completion never
 
 ## 9. Hobbies
 
-Each scheduled hobby subtask awards its own configured points **once per distinct scheduled occurrence** and can be overdue/rescheduled. Parent Hobby has no progress % or global hobby streak. Finish Hobby awards configured bonus once (default +5 INT => +750 XP) and becomes permanently archived; Archive alone grants none and is restorable. Delete removes active management but preserves audit/history.
+Hobby tasks carry no dates and are never overdue. Each task awards its configured points **once**, on the quest day it is ticked. A task marked repeatable may be ticked again on a later quest day and awards each time, at most once per quest day (unique `(step_id, scheduled_date)`). Today's tick can be undone, which withdraws its award. Parent Hobby has no progress % or global hobby streak. Finish Hobby awards configured bonus once (default +5 INT => +750 XP) and becomes permanently archived; Archive alone grants none and is restorable. Delete removes active management but preserves audit/history.
 
 ## 10. Sleep and Energy
 

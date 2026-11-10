@@ -12,6 +12,7 @@ import {
   type HistoryQuest,
 } from '../../data/history'
 import { supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 import { StatEditor } from '../../components/StatEditor'
 import { zeroStats } from '../../domain/progression/accounting'
 
@@ -69,6 +70,16 @@ function HistoricalQuestEditor({
       setError('Confirm every routine step before awarding the parent.')
       return
     }
+    if (
+      occurrence.status === 'completed' &&
+      historical &&
+      (outcomeId || null) !== occurrence.selected_outcome_id &&
+      !window.confirm(
+        'Changing a past outcome withdraws any streak bonuses that depended on it. ' +
+          'Those bonuses are never restored, even if you change it back. Continue?',
+      )
+    )
+      return
     setBusy(true)
     setError('')
     try {
@@ -97,14 +108,7 @@ function HistoricalQuestEditor({
       if (saveError) throw saveError
       onChanged()
     } catch (cause) {
-      const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : ''
-      setError(
-        code === '40001'
-          ? 'Conflict: this entry changed on another device. Refresh and review it.'
-          : cause instanceof Error
-            ? cause.message
-            : 'Could not save correction. Retry safely.',
-      )
+      setError(describeError(cause, 'Could not save correction. Retry safely.'))
     } finally {
       setBusy(false)
     }
@@ -130,14 +134,7 @@ function HistoricalQuestEditor({
       if (saveError) throw saveError
       onChanged()
     } catch (cause) {
-      const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : ''
-      setError(
-        code === '40001'
-          ? 'Conflict: this entry changed on another device. Refresh and review it.'
-          : cause instanceof Error
-            ? cause.message
-            : 'Could not remove completion.',
-      )
+      setError(describeError(cause, 'Could not remove completion.'))
     } finally {
       setBusy(false)
     }
@@ -227,9 +224,7 @@ function HistoricalQuestEditor({
               : 'Record completion'}
         </button>
       ) : (
-        <p className="meta">
-          Today’s recorded choice can be removed, then recorded again from Quests.
-        </p>
+        <p className="meta">Today’s recorded choice can be changed or removed from Quests.</p>
       )}
       {occurrence.status === 'completed' && (
         <button className="text-link" type="button" disabled={busy} onClick={() => void remove()}>
@@ -276,14 +271,7 @@ function HistoricalHobbyEditor({
       if (saveError) throw saveError
       onChanged()
     } catch (cause) {
-      const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : ''
-      setError(
-        code === '40001'
-          ? 'Conflict: this entry changed on another device. Refresh and review it.'
-          : cause instanceof Error
-            ? cause.message
-            : 'Could not correct hobby entry.',
-      )
+      setError(describeError(cause, 'Could not correct hobby entry.'))
     } finally {
       setBusy(false)
     }
@@ -355,14 +343,7 @@ function HistoricalFinishEditor({
       if (saveError) throw saveError
       onChanged()
     } catch (cause) {
-      const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : ''
-      setError(
-        code === '40001'
-          ? 'Conflict: this award changed on another device. Refresh and review it.'
-          : cause instanceof Error
-            ? cause.message
-            : 'Could not correct Finish award.',
-      )
+      setError(describeError(cause, 'Could not correct Finish award.'))
     } finally {
       setBusy(false)
     }

@@ -48,13 +48,14 @@ export interface Occurrence {
   selectedOutcomeId: string | null
   version: number
 }
+/** Hobby tasks carry no dates. A repeatable task may be completed once per quest day. */
 export interface Hobby {
   id: string
   ownerUserId: string
   name: string
   state: 'active' | 'archived' | 'finished' | 'deleted'
   finishEffects: StatEffects
-  steps: { id: string; name: string; schedule: Schedule; effects: StatEffects }[]
+  steps: { id: string; name: string; repeatable: boolean; effects: StatEffects }[]
   version: number
 }
 export interface SleepRecord {

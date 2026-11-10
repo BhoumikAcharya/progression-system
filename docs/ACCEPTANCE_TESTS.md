@@ -47,11 +47,11 @@ Each numbered invariant must be a repeatable test with meaningful assertions. Us
 ## E. Tasks, hobbies, To-Dos and archives
 
 31. Partial routine subtasks yield 0 XP and no parent completion; final child awards parent once; next occurrence resets checklist.
-32. Hobby subtask scheduled for Monday remains marked Overdue on following days; user may reschedule. Awards once per occurrence; no parent completion %.
+32. Hobby tasks have no dates: ticking a task awards once; ticking a repeatable task on two different quest days awards twice, twice on the same day awards once; today's tick can be undone. No parent completion %.
 33. Archive hobby (no finish reward), restore history; Finish Hobby awards configurable +5 INT => +750 XP one time and is permanent; delete preserves historical earned records.
 34. To-Do parent checkbox selects children, final child auto-completes parent, archive is embedded, restore clears all children, Clear Archive prompts for confirmation; never awards XP.
 35. Quest/Hobby deletion does not erase historical Calendar, stat ledger or XP ledger rows.
-36. Quests of different types only show on due dates (unless Hobby overdue); no automatically created mandatory daily quest penalties.
+36. Quests of different types only show on due dates; a missed one-time quest offers Record late; no automatically created mandatory daily quest penalties.
 
 ## F. UI and UX
 

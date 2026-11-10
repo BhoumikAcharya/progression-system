@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, PageHeader } from '../../components/ui'
 import { supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 
 interface TodoRow {
   id: string
@@ -36,7 +37,7 @@ export function TodosPage() {
       setRows((data ?? []) as TodoRow[])
       setError('')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not load To-Dos.')
+      setError(describeError(cause, 'Could not load To-Dos.'))
     } finally {
       setLoading(false)
     }
@@ -75,7 +76,7 @@ export function TodosPage() {
       await load()
       return true
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save To-Do. Retry safely.')
+      setError(describeError(cause, 'Could not save To-Do. Retry safely.'))
       return false
     } finally {
       setPending(false)
@@ -107,7 +108,7 @@ export function TodosPage() {
       if (saveError) throw saveError
       await load()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not remove To-Do. Retry safely.')
+      setError(describeError(cause, 'Could not remove To-Do. Retry safely.'))
     } finally {
       setPending(false)
     }
@@ -116,12 +117,15 @@ export function TodosPage() {
   const active = roots.filter((row) => !row.archived)
   const archived = roots.filter((row) => row.archived)
   function item(row: TodoRow, child = false) {
+    // An archived root stays tickable so an accidental tick is undone without clearing children.
+    const locked = row.archived && Boolean(row.parent_id)
     return (
       <label className={`todo-row ${child ? 'todo-child' : ''}`} key={row.id}>
         <input
           type="checkbox"
           checked={row.done}
-          disabled={pending || row.archived}
+          disabled={pending || locked}
+          aria-label={row.archived ? `Un-tick ${row.title} to restore it` : undefined}
           onChange={(event) =>
             void write('toggle', row.id, undefined, undefined, event.target.checked)
           }
@@ -210,7 +214,7 @@ export function TodosPage() {
           archived.map((root) => (
             <div className="todo-archive-row" key={root.id}>
               <span>
-                {root.title}
+                {item(root)}
                 {rows
                   .filter((row) => row.parent_id === root.id)
                   .map((child) => (

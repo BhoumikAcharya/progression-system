@@ -3,17 +3,17 @@ import { ChevronDown } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatEditor } from '../../components/StatEditor'
 import { potentialXp, zeroStats } from '../../domain/progression/accounting'
-import { accountDate } from '../../domain/scheduling/calendar'
-import type { LocalDate, Schedule, StatEffects } from '../../domain/types'
+import type { StatEffects } from '../../domain/types'
 import { supabaseClient } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 
 interface StepDraft {
   id?: string
   name: string
-  schedule: Schedule
+  repeatable: boolean
   effects: StatEffects
 }
-const newStep = (): StepDraft => ({ name: '', schedule: { kind: 'DAILY' }, effects: zeroStats() })
+const newStep = (): StepDraft => ({ name: '', repeatable: false, effects: zeroStats() })
 const configured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 )
@@ -45,7 +45,7 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
     supabaseClient()
       .from('hobbies')
       .select(
-        'name,description,version,finish_effects,hobby_steps(id,name,schedule_spec,effects,ordinal,state)',
+        'name,description,version,finish_effects,hobby_steps(id,name,effects,ordinal,state,repeatable)',
       )
       .eq('id', hobbyId)
       .eq('state', 'active')
@@ -53,7 +53,7 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
       .then(({ data, error: loadError }) => {
         if (!active) return
         if (loadError || !data) {
-          setError(loadError?.message ?? 'Hobby unavailable.')
+          setError(describeError(loadError, 'Hobby unavailable.'))
           setLoading(false)
           return
         }
@@ -65,10 +65,10 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
           (data.hobby_steps ?? []) as {
             id: string
             name: string
-            schedule_spec: Schedule
             effects: StatEffects
             ordinal: number
             state: string
+            repeatable: boolean
           }[]
         )
           .filter((step) => step.state === 'active')
@@ -76,7 +76,7 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
           .map((step) => ({
             id: step.id,
             name: step.name,
-            schedule: step.schedule_spec,
+            repeatable: step.repeatable,
             effects: step.effects,
           }))
         setSteps(loadedSteps)
@@ -97,6 +97,15 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
   function changeStep(index: number, patch: Partial<StepDraft>) {
     setSteps((current) => current.map((step, i) => (i === index ? { ...step, ...patch } : step)))
   }
+  function moveStep(index: number, direction: -1 | 1) {
+    setSteps((current) => {
+      const next = [...current]
+      const target = index + direction
+      if (target < 0 || target >= next.length) return current
+      ;[next[index], next[target]] = [next[target]!, next[index]!]
+      return next
+    })
+  }
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
@@ -108,29 +117,9 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
       setError('Offline. This hobby has not been saved.')
       return
     }
-    if (
-      steps.some(
-        (step) =>
-          !step.name.trim() ||
-          (step.schedule.kind === 'WEEKDAYS' && !step.schedule.weekdays.length),
-      )
-    ) {
-      setError('Name each subtask and select its scheduled days.')
+    if (steps.some((step) => !step.name.trim())) {
+      setError('Name each task.')
       return
-    }
-    if (hobbyId && savedSnapshot) {
-      const previous = JSON.parse(savedSnapshot) as { steps: StepDraft[] }
-      const scheduleChanged = steps.some((step) => {
-        const old = previous.steps.find((item) => item.id === step.id)
-        return old && JSON.stringify(old.schedule) !== JSON.stringify(step.schedule)
-      })
-      if (
-        scheduleChanged &&
-        !window.confirm(
-          'Changing a schedule updates pending dates from today. Recorded rewards remain in history. Continue?',
-        )
-      )
-        return
     }
     setBusy(true)
     try {
@@ -141,13 +130,18 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
           p_name: name.trim(),
           p_description: description.trim() || null,
           p_finish_effects: finishEffects,
-          p_steps: steps.map((step) => ({ ...step, name: step.name.trim() })),
+          p_steps: steps.map((step) => ({
+            ...(step.id ? { id: step.id } : {}),
+            name: step.name.trim(),
+            repeatable: step.repeatable,
+            effects: step.effects,
+          })),
         },
       )
       if (saveError) throw saveError
       navigate('/hobbies')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save hobby. Retry safely.')
+      setError(describeError(cause, 'Could not save hobby. Retry safely.'))
     } finally {
       setBusy(false)
     }
@@ -173,9 +167,7 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
       if (saveError) throw saveError
       navigate('/hub/hobby-archive')
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Could not finish hobby. Refresh and retry.',
-      )
+      setError(describeError(cause, 'Could not finish hobby. Refresh and retry.'))
     } finally {
       setBusy(false)
     }
@@ -227,163 +219,55 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
         />
       </label>
       <div className="editor-field">
-        <span className="section-label">Scheduled subtasks · each earns independently</span>
+        <span className="section-label">Tasks · no dates, each earns when ticked</span>
+        <p className="meta">
+          A task awards its points once. A repeatable task can be ticked again on a later day.
+        </p>
         {steps.map((step, index) => (
           <div className="hobby-step-editor" key={index}>
             <div className="routine-edit-row">
               <input
-                aria-label={`Hobby subtask ${index + 1}`}
+                aria-label={`Hobby task ${index + 1}`}
                 value={step.name}
                 onChange={(event) => changeStep(index, { name: event.target.value })}
-                placeholder={`Subtask ${index + 1}`}
+                placeholder={`Task ${index + 1}`}
                 required
                 maxLength={200}
               />
               <button
                 type="button"
-                aria-label={`Remove hobby subtask ${index + 1}`}
+                aria-label={`Remove hobby task ${index + 1}`}
                 disabled={steps.length === 1}
                 onClick={() => setSteps((current) => current.filter((_, i) => i !== index))}
               >
                 ×
               </button>
-              {hobbyId && (
-                <>
-                  <button
-                    type="button"
-                    aria-label={`Move subtask ${index + 1} up`}
-                    disabled={index === 0}
-                    onClick={() =>
-                      setSteps((current) => {
-                        const next = [...current]
-                        ;[next[index - 1], next[index]] = [next[index]!, next[index - 1]!]
-                        return next
-                      })
-                    }
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Move subtask ${index + 1} down`}
-                    disabled={index === steps.length - 1}
-                    onClick={() =>
-                      setSteps((current) => {
-                        const next = [...current]
-                        ;[next[index], next[index + 1]] = [next[index + 1]!, next[index]!]
-                        return next
-                      })
-                    }
-                  >
-                    ↓
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                aria-label={`Move task ${index + 1} up`}
+                disabled={index === 0}
+                onClick={() => moveStep(index, -1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label={`Move task ${index + 1} down`}
+                disabled={index === steps.length - 1}
+                onClick={() => moveStep(index, 1)}
+              >
+                ↓
+              </button>
             </div>
-            <label className="small-field">
-              Schedule
-              <select
-                aria-label={`Schedule for subtask ${index + 1}`}
-                value={step.schedule.kind}
-                onChange={(event) => {
-                  const kind = event.target.value
-                  const schedule: Schedule =
-                    kind === 'WEEKDAYS'
-                      ? { kind, weekdays: [] }
-                      : kind === 'MONTHLY'
-                        ? { kind, day: 1 }
-                        : kind === 'YEARLY'
-                          ? { kind, month: 1, day: 1 }
-                          : kind === 'ONCE'
-                            ? { kind, date: accountDate(new Date(), 'Asia/Kolkata') }
-                            : { kind: 'DAILY' }
-                  changeStep(index, { schedule })
-                }}
-              >
-                <option value="DAILY">Every Day</option>
-                <option value="WEEKDAYS">Days</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="YEARLY">Yearly</option>
-                <option value="ONCE">Once</option>
-              </select>
+            <label className="small-field checkbox-field">
+              <input
+                type="checkbox"
+                checked={step.repeatable}
+                onChange={(event) => changeStep(index, { repeatable: event.target.checked })}
+              />{' '}
+              Repeatable · can be completed once per day
             </label>
-            {step.schedule.kind === 'WEEKDAYS' && (
-              <div
-                className="weekday-options"
-                role="group"
-                aria-label={`Days for subtask ${index + 1}`}
-              >
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
-                  <button
-                    type="button"
-                    key={day}
-                    aria-pressed={
-                      step.schedule.kind === 'WEEKDAYS' && step.schedule.weekdays.includes(i + 1)
-                    }
-                    onClick={() => {
-                      if (step.schedule.kind !== 'WEEKDAYS') return
-                      const weekdays = step.schedule.weekdays.includes(i + 1)
-                        ? step.schedule.weekdays.filter((n) => n !== i + 1)
-                        : [...step.schedule.weekdays, i + 1].sort()
-                      changeStep(index, { schedule: { kind: 'WEEKDAYS', weekdays } })
-                    }}
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
-            )}
-            {(step.schedule.kind === 'MONTHLY' || step.schedule.kind === 'YEARLY') && (
-              <div className="date-pair">
-                {step.schedule.kind === 'YEARLY' && (
-                  <label className="small-field">
-                    Month
-                    <input
-                      type="number"
-                      min={1}
-                      max={12}
-                      value={step.schedule.month}
-                      onChange={(event) =>
-                        step.schedule.kind === 'YEARLY' &&
-                        changeStep(index, {
-                          schedule: { ...step.schedule, month: Number(event.target.value) },
-                        })
-                      }
-                    />
-                  </label>
-                )}
-                <label className="small-field">
-                  Day
-                  <input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={step.schedule.day}
-                    onChange={(event) =>
-                      (step.schedule.kind === 'MONTHLY' || step.schedule.kind === 'YEARLY') &&
-                      changeStep(index, {
-                        schedule: { ...step.schedule, day: Number(event.target.value) },
-                      })
-                    }
-                  />
-                </label>
-              </div>
-            )}
-            {step.schedule.kind === 'ONCE' && (
-              <label className="small-field">
-                Date
-                <input
-                  type="date"
-                  value={step.schedule.date}
-                  onChange={(event) =>
-                    changeStep(index, {
-                      schedule: { kind: 'ONCE', date: event.target.value as LocalDate },
-                    })
-                  }
-                />
-              </label>
-            )}
-            <p className="section-label">Subtask effects</p>
+            <p className="section-label">Task effects</p>
             <StatEditor
               effects={step.effects}
               onChange={(effects) => changeStep(index, { effects })}
@@ -396,7 +280,7 @@ export function HobbyEditor({ onLeave }: { onLeave?: (type: string) => void }) {
           className="text-link"
           onClick={() => setSteps((current) => [...current, newStep()])}
         >
-          + Add subtask
+          + Add task
         </button>
       </div>
       <div className="editor-field">

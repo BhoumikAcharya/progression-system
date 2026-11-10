@@ -42,6 +42,7 @@ for (const file of [
   '202611060001_idempotent_quest_creation.sql',
   '202611060002_archive_visibility.sql',
   '202611060003_correctness_fixes.sql',
+  '202611100001_review_fixes.sql',
 ]) {
   const sql = readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8').replace(
     'create extension if not exists pgcrypto;',
@@ -961,6 +962,147 @@ assert.equal(
   1,
 )
 await rejects(`select public.change_quest_state('${completedOnce}','restore',2)`, '22023')
+
+// Review fixes, 2026-11-10 ---------------------------------------------------------
+
+// Reconciliation keeps a watermark: the second run scans nothing and inserts nothing.
+assert.equal(
+  (await query(`select last_reconciled_quest_day::text as day from public.profiles where user_id='${onceOwner}'`))[0].day,
+  pastDay,
+)
+assert.equal((await query(`select public.reconcile_closed_quests() as n`))[0].n, 0)
+
+// Today's Volatile choice can be corrected in place and stays streak-eligible.
+const todayFixOwner = await freshAccount()
+const todayVolatile = (
+  await query(
+    `select id from public.create_quest('volatile','Mood',null,'{"kind":"DAILY"}','{}','[{"label":"Yes","effects":{"STR":1}},{"label":"No","effects":{"STR":-1}}]',null)`,
+  )
+)[0].id
+const todayOutcomes = await query(
+  `select id from public.quest_outcomes where quest_id='${todayVolatile}' order by slot`,
+)
+await query(`select public.record_quest('${todayVolatile}','${fixDay}','${todayOutcomes[0].id}')`)
+const todayOcc = (
+  await query(`select id,version from public.quest_occurrences where quest_id='${todayVolatile}'`)
+)[0]
+await query(
+  `select public.correct_quest_occurrence('${todayOcc.id}',${todayOcc.version},'${todayOutcomes[1].id}','${fixDay}')`,
+)
+const corrected = (
+  await query(
+    `select o.selected_outcome_id,e.config_snapshot from public.quest_occurrences o
+     join public.reward_source_events e on e.source_id=o.id and e.valid where o.id='${todayOcc.id}'`,
+  )
+)
+assert.equal(corrected.length, 1)
+assert.equal(corrected[0].selected_outcome_id, todayOutcomes[1].id)
+assert.equal(corrected[0].config_snapshot.streak_eligible, true)
+assert.equal(
+  (await query(`select current_length from public.streak_states where quest_id='${todayVolatile}'`))[0].current_length,
+  1,
+)
+assert.equal(
+  (await query(`select stats from public.profiles where user_id='${todayFixOwner}'`))[0].stats.STR,
+  0,
+)
+// An activity date before the quest existed is rejected.
+await rejects(
+  `select public.correct_quest_occurrence('${todayOcc.id}',${todayOcc.version + 2},'${todayOutcomes[1].id}','2020-01-01')`,
+  '22023',
+)
+
+// A routine step can be un-ticked until the parent is awarded.
+const untickOwner = await freshAccount()
+const untickRoutine = await newQuest('routine', '{"kind":"DAILY"}', '{"DIS":1}', '["A","B"]')
+const untickSteps = await query(
+  `select id from public.routine_steps where quest_id='${untickRoutine}' order by ordinal`,
+)
+await query(`select public.record_routine_step('${untickRoutine}','${fixDay}','${untickSteps[0].id}')`)
+await query(`select public.unrecord_routine_step('${untickRoutine}','${fixDay}','${untickSteps[0].id}')`)
+assert.equal(
+  (await query(`select status from public.quest_occurrences where quest_id='${untickRoutine}'`))[0].status,
+  'unreported',
+)
+await rejects(
+  `select public.unrecord_routine_step('${untickRoutine}','${fixDay}','${untickSteps[0].id}')`,
+  '22023',
+)
+for (const step of untickSteps)
+  await query(`select public.record_routine_step('${untickRoutine}','${fixDay}','${step.id}')`)
+await rejects(
+  `select public.unrecord_routine_step('${untickRoutine}','${fixDay}','${untickSteps[1].id}')`,
+  '22023',
+)
+assert.equal(
+  (await query(`select stats from public.profiles where user_id='${untickOwner}'`))[0].stats.DIS,
+  1,
+)
+
+// Hobby tasks: a plain task awards once ever, a repeatable task once per quest day.
+const taskOwner = await freshAccount()
+const taskHobby = (
+  await query(
+    `select id from public.create_hobby('Guitar',null,'{"INT":5}','[{"name":"Buy strings","effects":{"BNK":-1}},{"name":"Practice","effects":{"INT":1},"repeatable":true}]')`,
+  )
+)[0].id
+const taskSteps = await query(
+  `select id,repeatable,schedule_spec from public.hobby_steps where hobby_id='${taskHobby}' order by ordinal`,
+)
+assert.equal(taskSteps[0].repeatable, false)
+assert.equal(taskSteps[1].repeatable, true)
+assert.equal(taskSteps[0].schedule_spec.kind, 'TASK')
+await query(`select public.complete_hobby_task('${taskSteps[0].id}')`)
+await query(`select public.complete_hobby_task('${taskSteps[0].id}')`)
+await query(`select public.complete_hobby_task('${taskSteps[1].id}')`)
+await query(`select public.complete_hobby_task('${taskSteps[1].id}')`)
+const taskEvents = async () =>
+  (
+    await query(
+      `select count(*)::int as count from public.reward_source_events where owner_user_id='${taskOwner}' and source_type='hobby' and valid`,
+    )
+  )[0].count
+assert.equal(await taskEvents(), 2)
+const practice = (
+  await query(`select id,version from public.hobby_occurrences where step_id='${taskSteps[1].id}'`)
+)[0]
+await query(`select public.correct_hobby_occurrence('${practice.id}',${practice.version},null,null,true)`)
+assert.equal(await taskEvents(), 1)
+await query(`select public.complete_hobby_task('${taskSteps[1].id}')`)
+assert.equal(await taskEvents(), 2)
+assert.equal(
+  (await query(`select count(*)::int as count from public.hobby_occurrences where step_id='${taskSteps[1].id}'`))[0].count,
+  1,
+)
+await rejects(
+  `select public.correct_hobby_occurrence('${practice.id}',${practice.version + 2},'2020-01-01')`,
+  '22023',
+)
+assert.equal(
+  (await query(`select stats,corrected_lifetime_xp from public.profiles where user_id='${taskOwner}'`))[0].stats.INT,
+  1,
+)
+
+// Un-ticking an archived To-Do root restores it without clearing its children.
+await freshAccount()
+const rootId = crypto.randomUUID(),
+  childId = crypto.randomUUID()
+await query(`select public.write_todo('create','${rootId}','Pack')`)
+await query(`select public.write_todo('create','${childId}','Socks','${rootId}')`)
+await query(`select public.write_todo('toggle','${childId}',null,null,true)`)
+assert.equal(
+  (await query(`select archived from public.todo_items where id='${rootId}'`))[0].archived,
+  true,
+)
+await query(`select public.write_todo('toggle','${rootId}',null,null,false)`)
+const todoRows = await query(
+  `select id,done,archived from public.todo_items where id in ('${rootId}','${childId}')`,
+)
+assert.deepEqual(
+  todoRows.find((row) => row.id === rootId),
+  { id: rootId, done: false, archived: false },
+)
+assert.equal(todoRows.find((row) => row.id === childId).done, true)
 
 await db.close()
 console.log('RLS, idempotency, correction, monotonic level and owner isolation: passed')

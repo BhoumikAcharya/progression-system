@@ -4,6 +4,7 @@ import { usePreferences } from '../../app/PreferencesContext'
 import { MenuRow, PageHeader, Section } from '../../components/ui'
 import { downloadPrivateExport, fetchPrivateExport } from '../../data/export'
 import { SupabaseAuthRepository, SupabaseProfileRepository } from '../../data/supabase'
+import { describeError } from '../../data/errors'
 import { setSleepCollapsedByDefault, sleepCollapsedByDefault } from '../../data/sleep-preferences'
 import type { Theme } from '../../domain/types'
 export function SettingsPage() {
@@ -34,7 +35,7 @@ export function SettingsPage() {
       downloadPrivateExport(await fetchPrivateExport())
       setExportMessage('JSON backup downloaded to this device. Keep it private.')
     } catch (cause) {
-      setExportMessage(cause instanceof Error ? cause.message : 'Export failed. Please retry.')
+      setExportMessage(describeError(cause, 'Export failed. Please retry.'))
     } finally {
       setExporting(false)
     }
@@ -56,7 +57,7 @@ export function SettingsPage() {
       setEditingName(false)
       setSaved(true)
     } catch (cause) {
-      setNameError(cause instanceof Error ? cause.message : 'Could not save name. Retry.')
+      setNameError(describeError(cause, 'Could not save name. Retry.'))
     } finally {
       setNameSaving(false)
     }
@@ -73,7 +74,7 @@ export function SettingsPage() {
       setThemeMessage('Appearance saved to your account.')
     } catch (cause) {
       setTheme(previous)
-      setThemeMessage(cause instanceof Error ? cause.message : 'Could not save appearance. Retry.')
+      setThemeMessage(describeError(cause, 'Could not save appearance. Retry.'))
     } finally {
       setThemeSaving(false)
     }
@@ -87,7 +88,7 @@ export function SettingsPage() {
       navigate('/login', { replace: true })
       unauthorize()
     } catch (cause) {
-      setSignOutError(cause instanceof Error ? cause.message : 'Could not sign out. Retry.')
+      setSignOutError(describeError(cause, 'Could not sign out. Retry.'))
     } finally {
       setSigningOut(false)
     }
