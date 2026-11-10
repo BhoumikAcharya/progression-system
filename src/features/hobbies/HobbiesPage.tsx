@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MoreHorizontal } from 'lucide-react'
 import { EmptyState, PageHeader } from '../../components/ui'
 import { supabaseClient } from '../../data/supabase'
 import { describeError } from '../../data/errors'
+import { readPreference, writePreference } from '../../data/local-preferences'
 import { questDay } from '../../domain/scheduling/calendar'
 import type { LocalDate, StatEffects } from '../../domain/types'
 
@@ -30,68 +31,102 @@ interface OccurrenceRow {
   actual_activity_date: LocalDate | null
   version: number
 }
+/** One valid award for a hobby task, kept even when the task was later deleted or edited. */
+interface CompletionRow {
+  id: string
+  source_id: string
+  activity_date: LocalDate
+  config_snapshot: { hobby_id?: string; step_name?: string; step_id?: string }
+  stat_ledger_entries: { stat_key: string; effective_delta: number }[]
+  xp_ledger_entries: { credit_delta: number; reason: string }[]
+}
 const configured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 )
 const DEFAULT_ZONE = 'Asia/Kolkata'
+const ZONE_KEY = 'progression.time-zone.v1'
 function effectsText(effects: StatEffects | Partial<StatEffects>) {
   return Object.entries(effects)
     .filter(([, value]) => value !== 0)
     .map(([key, value]) => `${key} ${value > 0 ? '+' : ''}${value}`)
     .join(' · ')
 }
+function ledgerText(entries: CompletionRow['stat_ledger_entries']) {
+  return (
+    entries
+      .filter((entry) => entry.effective_delta !== 0)
+      .map(
+        (entry) =>
+          `${entry.stat_key} ${entry.effective_delta > 0 ? '+' : ''}${entry.effective_delta}`,
+      )
+      .join(' · ') || 'No stat change'
+  )
+}
 export function HobbiesPage() {
   const [hobbies, setHobbies] = useState<HobbyRow[]>([])
   const [occurrences, setOccurrences] = useState<OccurrenceRow[]>([])
-  const [zone, setZone] = useState(DEFAULT_ZONE)
-  const [day, setDay] = useState<LocalDate>(() => questDay(new Date(), DEFAULT_ZONE))
+  const [completions, setCompletions] = useState<CompletionRow[]>([])
+  const [zone, setZone] = useState(() => readPreference(ZONE_KEY) ?? DEFAULT_ZONE)
+  const [day, setDay] = useState<LocalDate>(() =>
+    questDay(new Date(), readPreference(ZONE_KEY) ?? DEFAULT_ZONE),
+  )
   const [loading, setLoading] = useState(configured)
   const [loaded, setLoaded] = useState(!configured)
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [showDone, setShowDone] = useState<Record<string, boolean>>({})
+  const [history, setHistory] = useState<Record<string, boolean>>({})
+  const loadSequence = useRef(0)
   const load = useCallback(async () => {
     if (!configured) return
+    const sequence = ++loadSequence.current
     setLoading(true)
     try {
       const db = supabaseClient()
-      const { data: profile, error: profileError } = await db
-        .from('profiles')
-        .select('time_zone')
-        .single()
-      if (profileError || !profile) throw profileError ?? new Error('Profile unavailable')
-      const { data, error: hobbyError } = await db
-        .from('hobbies')
-        .select(
-          'id,name,description,version,finish_effects,hobby_steps(id,name,effects,ordinal,state,repeatable)',
-        )
-        .eq('state', 'active')
-        .order('created_at')
-      if (hobbyError) throw hobbyError
-      const active = (data ?? []) as unknown as HobbyRow[]
-      const ids = active.flatMap((hobby) => hobby.hobby_steps.map((step) => step.id))
-      let nextOccurrences: OccurrenceRow[] = []
-      if (ids.length) {
-        const { data: rows, error: occurrenceError } = await db
+      // One parallel round trip. Completed rows and awards are owner-scoped by RLS.
+      const [profile, hobbyRows, occurrenceRows, awardRows] = await Promise.all([
+        db.from('profiles').select('time_zone').single(),
+        db
+          .from('hobbies')
+          .select(
+            'id,name,description,version,finish_effects,hobby_steps(id,name,effects,ordinal,state,repeatable)',
+          )
+          .eq('state', 'active')
+          .order('created_at'),
+        db
           .from('hobby_occurrences')
           .select('id,step_id,scheduled_date,actual_activity_date,version')
-          .in('step_id', ids)
-          .not('completed_at', 'is', null)
-        if (occurrenceError) throw occurrenceError
-        nextOccurrences = (rows ?? []) as OccurrenceRow[]
-      }
-      setZone(profile.time_zone)
-      setDay(questDay(new Date(), profile.time_zone))
-      setHobbies(active)
-      setOccurrences(nextOccurrences)
+          .not('completed_at', 'is', null),
+        db
+          .from('reward_source_events')
+          .select(
+            'id,source_id,activity_date,config_snapshot,stat_ledger_entries(stat_key,effective_delta),xp_ledger_entries(credit_delta,reason)',
+          )
+          .eq('source_type', 'hobby')
+          .eq('valid', true)
+          .order('activity_date', { ascending: false })
+          .order('recorded_at', { ascending: false }),
+      ])
+      for (const result of [profile, hobbyRows, occurrenceRows, awardRows])
+        if (result.error) throw result.error
+      if (!profile.data) throw new Error('Profile unavailable')
+      if (sequence !== loadSequence.current) return
+      writePreference(ZONE_KEY, profile.data.time_zone)
+      setZone(profile.data.time_zone)
+      setDay(questDay(new Date(), profile.data.time_zone))
+      setHobbies((hobbyRows.data ?? []) as unknown as HobbyRow[])
+      setOccurrences((occurrenceRows.data ?? []) as OccurrenceRow[])
+      setCompletions((awardRows.data ?? []) as unknown as CompletionRow[])
       setError('')
     } catch (cause) {
       // A failed refresh keeps the last known cards visible next to the error.
-      setError(describeError(cause, 'Could not load hobbies.'))
+      if (sequence === loadSequence.current)
+        setError(describeError(cause, 'Could not load hobbies.'))
     } finally {
-      setLoading(false)
-      setLoaded(true)
+      if (sequence === loadSequence.current) {
+        setLoading(false)
+        setLoaded(true)
+      }
     }
   }, [])
   useEffect(() => {
@@ -133,11 +168,10 @@ export function HobbiesPage() {
       () => supabaseClient().rpc('complete_hobby_task', { p_step_id: step.id }),
       'Could not record the task. Refresh and retry.',
     )
-  const undo = (step: HobbyStep, occurrence: OccurrenceRow) => {
-    if (!window.confirm(`Remove today’s completion of ${step.name}? Its award is withdrawn.`))
-      return
+  const undo = (label: string, occurrence: OccurrenceRow) => {
+    if (!window.confirm(`Remove today’s completion of ${label}? Its award is withdrawn.`)) return
     return write(
-      step.id,
+      occurrence.step_id,
       () =>
         supabaseClient().rpc('correct_hobby_occurrence', {
           p_occurrence_id: occurrence.id,
@@ -202,6 +236,7 @@ export function HobbiesPage() {
           const steps = [...hobby.hobby_steps]
             .filter((step) => step.state === 'active')
             .sort((a, b) => a.ordinal - b.ordinal)
+          const stepIds = new Set(hobby.hobby_steps.map((step) => step.id))
           const forStep = (step: HobbyStep) =>
             occurrences
               .filter((row) => row.step_id === step.id)
@@ -210,7 +245,11 @@ export function HobbiesPage() {
             const done = forStep(step)
             return step.repeatable ? !done.some((row) => row.scheduled_date === day) : !done.length
           })
-          const finished = steps.filter((step) => !open.includes(step))
+          const completed = completions.filter(
+            (row) =>
+              row.config_snapshot.hobby_id === hobby.id ||
+              (row.config_snapshot.step_id ? stepIds.has(row.config_snapshot.step_id) : false),
+          )
           const busy = Boolean(pending)
           return (
             <article className="hobby-card" key={hobby.id} aria-label={hobby.name}>
@@ -280,55 +319,60 @@ export function HobbiesPage() {
                     : 'No tasks yet. Add some from Edit tasks.'}
                 </p>
               )}
-              {finished.length > 0 && (
-                <>
-                  <button
-                    className="text-link"
-                    aria-expanded={Boolean(showDone[hobby.id])}
-                    onClick={() =>
-                      setShowDone((current) => ({ ...current, [hobby.id]: !current[hobby.id] }))
-                    }
-                  >
-                    {showDone[hobby.id] ? 'Hide' : 'Show'} {finished.length} done
-                  </button>
-                  {showDone[hobby.id] && (
-                    <div className="hobby-task-list hobby-done-list">
-                      {finished.map((step) => {
-                        const latest = forStep(step)[0]
-                        const today = latest?.scheduled_date === day
-                        return (
-                          <div className="hobby-task completed" key={step.id}>
-                            <span className="hobby-task-main">
-                              <span className="empty-checkbox is-checked" aria-hidden="true">
-                                ✓
-                              </span>
-                              <span>
-                                {step.name}
-                                <small>
-                                  {step.repeatable ? 'Done today' : 'Done'}
-                                  {latest?.actual_activity_date
-                                    ? ` · ${latest.actual_activity_date}`
-                                    : ''}
-                                </small>
-                              </span>
-                              <span className="meta">{effectsText(step.effects)}</span>
+              <details
+                className="hobby-history"
+                open={Boolean(history[hobby.id])}
+                onToggle={(event) =>
+                  setHistory((current) => ({
+                    ...current,
+                    [hobby.id]: (event.target as HTMLDetailsElement).open,
+                  }))
+                }
+              >
+                <summary>Completed ({completed.length})</summary>
+                {completed.length ? (
+                  <div className="hobby-task-list hobby-done-list">
+                    {completed.map((row) => {
+                      const occurrence = occurrences.find((o) => o.id === row.source_id)
+                      const today = occurrence?.scheduled_date === day
+                      const label = row.config_snapshot.step_name ?? 'Task'
+                      const xp = row.xp_ledger_entries
+                        .filter((entry) => entry.reason === 'current_award')
+                        .reduce((sum, entry) => sum + Number(entry.credit_delta), 0)
+                      return (
+                        <div className="hobby-task completed" key={row.id}>
+                          <span className="hobby-task-main">
+                            <span className="empty-checkbox is-checked" aria-hidden="true">
+                              ✓
                             </span>
-                            {today && latest && (
-                              <button
-                                className="text-link"
-                                disabled={busy}
-                                onClick={() => void undo(step, latest)}
-                              >
-                                Undo
-                              </button>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
+                            <span>
+                              {label}
+                              <small>
+                                <time dateTime={row.activity_date}>{row.activity_date}</time>
+                                {today ? ' · today' : ''}
+                              </small>
+                            </span>
+                            <span className="meta">
+                              {ledgerText(row.stat_ledger_entries)} · +{xp} XP
+                            </span>
+                          </span>
+                          {today && occurrence && (
+                            <button
+                              className="text-link"
+                              disabled={busy}
+                              onClick={() => void undo(label, occurrence)}
+                            >
+                              Undo
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="meta">Nothing completed yet.</p>
+                )}
+              </details>
               <p className="meta">
                 Finish reward: {effectsText(hobby.finish_effects) || 'No stat effect'}
               </p>

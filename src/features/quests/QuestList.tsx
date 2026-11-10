@@ -6,6 +6,7 @@ import { questVisibility } from '../../domain/scheduling/quest-visibility'
 import type { LocalDate, Schedule, StatEffects } from '../../domain/types'
 import { supabaseClient } from '../../data/supabase'
 import { describeError } from '../../data/errors'
+import { readPreference, writePreference } from '../../data/local-preferences'
 import { EmptyState } from '../../components/ui'
 interface QuestRow {
   id: string
@@ -52,7 +53,17 @@ interface ScheduledQuest {
   nextDue: LocalDate | null
 }
 const DEFAULT_ZONE = 'Asia/Kolkata'
+const ZONE_KEY = 'progression.time-zone.v1'
+const RECONCILED_KEY = 'progression.reconciled-day.v1'
 const ROLLOVER_CHECK_MS = 60_000
+/** Per-tab store for the reconciled day. Falls back to nothing when storage is blocked. */
+function sessionPreferences() {
+  try {
+    return window.sessionStorage
+  } catch {
+    return undefined
+  }
+}
 
 /** Current period for a quest on the given day, newest generation first. */
 function currentPeriod(quest: QuestRow, day: LocalDate) {
@@ -108,84 +119,79 @@ export function QuestList() {
     setError('')
     try {
       const db = supabaseClient()
-      const { data: profile, error: profileError } = await db
-        .from('profiles')
-        .select('time_zone')
-        .single()
-      if (profileError || !profile) throw profileError ?? new Error('Profile unavailable')
-      const currentDay = questDay(new Date(), profile.time_zone)
-      const { error: reconcileError } = await db.rpc('reconcile_closed_quests')
-      if (reconcileError) throw reconcileError
-      const { data: definitions, error: definitionsError } = await db
-        .from('quest_definitions')
-        .select(
-          'id,type,name,version,effects,quest_schedule_periods(id,generation,active_from,active_through,schedule_spec),quest_outcomes(id,label,effects,slot),routine_steps(id,name,ordinal)',
-        )
-        .eq('state', 'active')
-        .order('created_at')
-      if (definitionsError) throw definitionsError
-      const classified = ((definitions ?? []) as unknown as QuestRow[]).map((quest) => ({
-        quest,
-        visibility: questVisibility(quest.quest_schedule_periods, currentDay),
-      }))
-      const due = classified.filter((row) => row.visibility.dueToday).map((row) => row.quest)
-      const nextScheduled = classified
-        .filter((row) => !row.visibility.dueToday)
-        .map((row) => ({ quest: row.quest, nextDue: row.visibility.nextDue }))
-      let nextOccurrences: OccurrenceRow[] = []
-      let nextResults: ResultRow[] = []
-      let nextStepCompletions: StepCompletionRow[] = []
-      let nextStreaks: StreakRow[] = []
-      if (due.length) {
-        const ids = due.map((q) => q.id)
-        const [occurrenceResult, streakResult] = await Promise.all([
+      // The account zone is cached so the day is known before the first byte arrives.
+      const cachedZone = readPreference(ZONE_KEY) ?? DEFAULT_ZONE
+      const currentDay = questDay(new Date(), cachedZone)
+      // Closed days are reconciled once per quest day per tab, not on every refresh.
+      if (readPreference(RECONCILED_KEY, sessionPreferences()) !== currentDay) {
+        const { error: reconcileError } = await db.rpc('reconcile_closed_quests')
+        if (reconcileError) throw reconcileError
+        writePreference(RECONCILED_KEY, currentDay, sessionPreferences())
+      }
+      // Everything the page needs in one parallel round trip.
+      const [profile, definitions, occurrenceRows, stepRows, awardRows, streakRows] =
+        await Promise.all([
+          db.from('profiles').select('time_zone').single(),
+          db
+            .from('quest_definitions')
+            .select(
+              'id,type,name,version,effects,quest_schedule_periods(id,generation,active_from,active_through,schedule_spec),quest_outcomes(id,label,effects,slot),routine_steps(id,name,ordinal)',
+            )
+            .eq('state', 'active')
+            .order('created_at'),
           db
             .from('quest_occurrences')
             .select('id,quest_id,status,selected_outcome_id,version')
+            .eq('scheduled_date', currentDay),
+          db
+            .from('routine_step_completions')
+            .select('occurrence_id,step_id,quest_occurrences!inner(scheduled_date)')
+            .eq('quest_occurrences.scheduled_date', currentDay)
+            .not('completed_at', 'is', null),
+          db
+            .from('reward_source_events')
+            .select(
+              'id,source_id,stat_ledger_entries(stat_key,effective_delta),xp_ledger_entries(credit_delta,reason)',
+            )
+            .eq('source_type', 'quest')
             .eq('scheduled_date', currentDay)
-            .in('quest_id', ids),
+            .eq('valid', true),
           db
             .from('streak_states')
-            .select('quest_id,outcome_id,generation,current_length,last_scheduled_date')
-            .in('quest_id', ids),
+            .select('quest_id,outcome_id,generation,current_length,last_scheduled_date'),
         ])
-        if (occurrenceResult.error) throw occurrenceResult.error
-        if (streakResult.error) throw streakResult.error
-        nextStreaks = (streakResult.data ?? []) as StreakRow[]
-        const current = (occurrenceResult.data ?? []) as OccurrenceRow[]
-        nextOccurrences = current
-        if (current.length) {
-          const occurrenceIds = current.map((o) => o.id)
-          const [stepsResult, awardResult] = await Promise.all([
-            db
-              .from('routine_step_completions')
-              .select('occurrence_id,step_id')
-              .in('occurrence_id', occurrenceIds)
-              .not('completed_at', 'is', null),
-            db
-              .from('reward_source_events')
-              .select(
-                'id,source_id,stat_ledger_entries(stat_key,effective_delta),xp_ledger_entries(credit_delta,reason)',
-              )
-              .eq('source_type', 'quest')
-              .eq('valid', true)
-              .in('source_id', occurrenceIds),
-          ])
-          if (stepsResult.error) throw stepsResult.error
-          if (awardResult.error) throw awardResult.error
-          nextStepCompletions = (stepsResult.data ?? []) as StepCompletionRow[]
-          nextResults = (awardResult.data ?? []) as unknown as ResultRow[]
+      for (const result of [profile, definitions, occurrenceRows, stepRows, awardRows, streakRows])
+        if (result.error) throw result.error
+      if (!profile.data) throw new Error('Profile unavailable')
+      if (
+        profile.data.time_zone !== cachedZone &&
+        writePreference(ZONE_KEY, profile.data.time_zone)
+      ) {
+        // First load on this device, or the account zone changed: redo with the right day.
+        // Only when the zone could be stored, so a blocked storage cannot loop.
+        if (sequence === loadSequence.current) {
+          loadSequence.current--
+          await load()
         }
+        return
       }
+      const classified = ((definitions.data ?? []) as unknown as QuestRow[]).map((quest) => ({
+        quest,
+        visibility: questVisibility(quest.quest_schedule_periods, currentDay),
+      }))
       if (sequence !== loadSequence.current) return
-      setZone(profile.time_zone)
+      setZone(profile.data.time_zone)
       setDay(currentDay)
-      setQuests(due)
-      setScheduled(nextScheduled)
-      setOccurrences(nextOccurrences)
-      setResults(nextResults)
-      setStepCompletions(nextStepCompletions)
-      setStreaks(nextStreaks)
+      setQuests(classified.filter((row) => row.visibility.dueToday).map((row) => row.quest))
+      setScheduled(
+        classified
+          .filter((row) => !row.visibility.dueToday)
+          .map((row) => ({ quest: row.quest, nextDue: row.visibility.nextDue })),
+      )
+      setOccurrences((occurrenceRows.data ?? []) as OccurrenceRow[])
+      setStepCompletions((stepRows.data ?? []) as unknown as StepCompletionRow[])
+      setResults((awardRows.data ?? []) as unknown as ResultRow[])
+      setStreaks((streakRows.data ?? []) as StreakRow[])
     } catch (cause) {
       // A failed refresh keeps the last known cards visible next to the error.
       if (sequence === loadSequence.current)

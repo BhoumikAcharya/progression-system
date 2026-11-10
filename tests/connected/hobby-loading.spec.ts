@@ -68,6 +68,21 @@ test('completed hobby tasks do not flash while completion data is loading', asyn
           ],
         },
       ])
+    if (url.pathname.endsWith('/rest/v1/reward_source_events'))
+      return json([
+        {
+          id: '40000000-0000-4000-8000-000000000001',
+          source_id: '30000000-0000-4000-8000-000000000001',
+          activity_date: '2026-11-06',
+          config_snapshot: {
+            hobby_id: '10000000-0000-4000-8000-000000000001',
+            step_id: '20000000-0000-4000-8000-000000000001',
+            step_name: 'Paint a study',
+          },
+          stat_ledger_entries: [{ stat_key: 'INT', effective_delta: 1 }],
+          xp_ledger_entries: [{ credit_delta: 150, reason: 'current_award' }],
+        },
+      ])
     if (url.pathname.endsWith('/rest/v1/hobby_occurrences')) {
       await occurrenceGate
       return json([
@@ -93,7 +108,7 @@ test('completed hobby tasks do not flash while completion data is loading', asyn
   releaseOccurrences()
   await expect(page.getByText('All wrapped up for now.')).toBeVisible()
   await expect(page.getByText('Paint a study')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Show 1 done' }).click()
+  await page.getByText('Completed (1)').click()
   await expect(page.getByText('Paint a study')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible()
 })

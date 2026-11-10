@@ -1502,8 +1502,24 @@ main:focus {
   font-style: normal;
   font-size: 10px;
 }
+.hobby-history {
+  margin: 12px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.hobby-history summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.hobby-history[open] summary {
+  color: var(--accent);
+}
 .hobby-done-list {
-  margin-top: 4px;
+  margin-top: 0;
+  border-top: 0;
 }
 .hobby-task.completed {
   color: var(--muted);
